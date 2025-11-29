@@ -16,7 +16,7 @@
     const CONFIG = {
         minUppercaseLen: 2,
         minCapitalizedLen: 3,
-        terminators: new Set(['.', '!', '?', '…']),
+        terminators: new Set(['.', '!', '?', '…', ':', ';']),
         blockTags: new Set([
             'DIV', 'P', 'LI', 'TD', 'TH', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
             'HEADER', 'FOOTER', 'SECTION', 'ARTICLE', 'ASIDE', 'BLOCKQUOTE', 'FIGCAPTION'
@@ -33,6 +33,10 @@
     const RE_UPPERCASE = new RegExp(`^\\b[A-Z]{${CONFIG.minUppercaseLen},}\\b$`);
     // Capitalized: First cap, rest lower, length >= 3. e.g. Python
     const RE_CAPITALIZED = new RegExp(`^\\b[A-Z][a-z]{${CONFIG.minCapitalizedLen - 1},}\\b$`);
+    // Mixed Case: CamelCase, PascalCase, or lowerStart (e.g. FastAPI, iOS, PocketBase)
+    const RE_MIXED_CASE = /^\b([A-Z][a-z]*[A-Z][a-zA-Z]*|[a-z]+[A-Z][a-zA-Z]*)\b$/;
+    // Hyphenated: Contains hyphen, has at least one uppercase (e.g. ML-based)
+    const RE_HYPHENATED = /^\b(?=.*[A-Z])[A-Za-z]+-[A-Za-z]+\b$/;
 
     // --- State Management ---
     let atSentenceStart = true;
@@ -121,7 +125,8 @@
 
         const blockParent = getBlockParent(textNode);
 
-        const tokens = text.split(/([.!?…]|\s+|[^a-zA-Z.!?…\s]+)/).filter(t => t);
+        // Include hyphens in words by excluding them from the "non-word" separator group
+        const tokens = text.split(/([.!?…:;]|\s+|[^a-zA-Z\-.!?…:;\s]+)/).filter(t => t);
 
         const fragment = document.createDocumentFragment();
         let modified = false;
@@ -139,7 +144,7 @@
             }
 
             // Check if token is whitespace or other non-word
-            if (!/^[a-zA-Z]+$/.test(token)) {
+            if (!/^[a-zA-Z\-]+$/.test(token)) {
                 fragment.appendChild(document.createTextNode(token));
                 return;
             }
@@ -158,7 +163,7 @@
             // Decision Logic
             let shouldBold = false;
             if (!isBlockStart && !isSentenceStart) {
-                if (RE_UPPERCASE.test(token) || RE_CAPITALIZED.test(token)) {
+                if (RE_UPPERCASE.test(token) || RE_CAPITALIZED.test(token) || RE_MIXED_CASE.test(token) || RE_HYPHENATED.test(token)) {
                     shouldBold = true;
                 }
             }
