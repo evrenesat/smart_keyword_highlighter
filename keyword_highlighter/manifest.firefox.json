@@ -7,6 +7,12 @@
     "48": "icons/icon.png",
     "96": "icons/icon.png"
   },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "keyword-highlighter@example.com",
+      "strict_min_version": "109.0"
+    }
+  },
   "permissions": [
     "storage",
     "tabs",
