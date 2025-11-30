@@ -1,0 +1,14 @@
+{
+    "name": "keyword-highlighter",
+    "version": "1.0.0",
+    "description": "Highlights uppercase and capitalized words.",
+    "scripts": {
+        "build": "node scripts/build.js",
+        "dev:firefox": "web-ext run --source-dir . --manifest manifest.firefox.json"
+    },
+    "devDependencies": {
+        "archiver": "^5.3.1",
+        "fs-extra": "^10.0.0",
+        "web-ext": "^7.6.2"
+    }
+}

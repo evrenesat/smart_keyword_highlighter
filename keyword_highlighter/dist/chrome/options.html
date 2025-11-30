@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Keyword Highlighter Options</title>
+    <link rel="stylesheet" href="options.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>Keyword Highlighter</h1>
+
+        <div class="section">
+            <label class="toggle">
+                <input type="checkbox" id="defaultEnabled">
+                <span class="slider"></span>
+                <span class="label-text">Enable by default</span>
+            </label>
+            <p class="help-text">If enabled, the script runs on all sites except those in the list below. If disabled,
+                it only runs on sites in the list.</p>
+        </div>
+
+        <div class="section">
+            <label for="siteList">Site List (one domain per line):</label>
+            <textarea id="siteList" rows="10" placeholder="example.com&#10;sub.example.com"></textarea>
+        </div>
+
+        <div id="status"></div>
+    </div>
+    <script src="options.js"></script>
+</body>
+
+</html>
