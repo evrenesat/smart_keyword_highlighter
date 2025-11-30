@@ -1,6 +1,33 @@
 (function () {
     'use strict';
 
+    // --- Polyfill & Helpers ---
+    const browser = (typeof globalThis.browser === "undefined" && typeof globalThis.chrome !== "undefined")
+        ? globalThis.chrome
+        : globalThis.browser;
+
+    function storageGet(keys) {
+        return new Promise((resolve, reject) => {
+            try {
+                const result = browser.storage.local.get(keys, (data) => {
+                    if (browser.runtime.lastError) {
+                        // If it was a promise-based API that failed, or callback error
+                        // But if it's promise based, this callback might not be used or it behaves differently.
+                        // Actually, Firefox supports callbacks too.
+                        // Let's try to use the return value check.
+                    }
+                    resolve(data);
+                });
+                // If result is a promise (Firefox), wait for it.
+                if (result && typeof result.then === 'function') {
+                    result.then(resolve, reject);
+                }
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
+
     // --- Storage & Init ---
     const defaultSettings = {
         defaultEnabled: true,
@@ -395,9 +422,17 @@
     }
 
     let currentSettings = defaultSettings;
+    console.log('Bolder: Checking storage availability...', typeof browser, browser?.storage);
+
     if (typeof browser !== 'undefined' && browser.storage) {
-        browser.storage.local.get(defaultSettings).then((result) => {
-            currentSettings = result;
+        console.log('Bolder: Requesting storage...');
+        storageGet(defaultSettings).then((result) => {
+            console.log('Bolder: Storage retrieved:', result);
+            currentSettings = result || defaultSettings; // Handle undefined result
+            init();
+        }).catch(err => {
+            console.error('Bolder: Storage failed:', err);
+            // Fallback to init anyway?
             init();
         });
     } else {

@@ -1,3 +1,29 @@
+const browser = (typeof globalThis.browser === "undefined" && typeof globalThis.chrome !== "undefined")
+    ? globalThis.chrome
+    : globalThis.browser;
+
+function storageGet(keys) {
+    return new Promise((resolve, reject) => {
+        const result = browser.storage.local.get(keys, (data) => {
+            resolve(data);
+        });
+        if (result && typeof result.then === 'function') {
+            result.then(resolve, reject);
+        }
+    });
+}
+
+function storageSet(items) {
+    return new Promise((resolve, reject) => {
+        const result = browser.storage.local.set(items, () => {
+            resolve();
+        });
+        if (result && typeof result.then === 'function') {
+            result.then(resolve, reject);
+        }
+    });
+}
+
 const defaultSettings = {
     defaultEnabled: true,
     siteList: []
@@ -22,7 +48,7 @@ function isSiteEnabled(url, settings) {
 
 // Helper: Update icon based on state
 function updateIcon(tabId, isEnabled) {
-    const path = isEnabled ? "icons/icon.svg" : "icons/icon_disabled.svg";
+    const path = isEnabled ? "icons/icon.png" : "icons/icon_disabled.png";
     browser.action.setIcon({ tabId, path });
     // Optional: Update title
     const title = isEnabled ? "Keyword Highlighter: ON" : "Keyword Highlighter: OFF";
@@ -31,7 +57,7 @@ function updateIcon(tabId, isEnabled) {
 
 // Helper: Get settings
 async function getSettings() {
-    return await browser.storage.local.get(defaultSettings);
+    return await storageGet(defaultSettings);
 }
 
 // Update icon when tab is updated or activated
@@ -74,7 +100,7 @@ browser.action.onClicked.addListener(async (tab) => {
             newSiteList.push(hostname);
         }
 
-        await browser.storage.local.set({ siteList: newSiteList });
+        await storageSet({ siteList: newSiteList });
 
         // Icon update will happen via storage listener or we can force it here
         // But let's rely on storage change to keep it synced or just update immediately for responsiveness

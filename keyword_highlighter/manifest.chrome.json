@@ -4,8 +4,8 @@
     "version": "1.0",
     "description": "Highlights uppercase and capitalized words.",
     "icons": {
-        "48": "icons/icon.png",
-        "96": "icons/icon.png"
+        "48": "icons/icon.svg",
+        "96": "icons/icon.svg"
     },
     "permissions": [
         "storage",
@@ -17,23 +17,13 @@
     },
     "action": {
         "default_icon": {
-            "48": "icons/icon.png",
-            "96": "icons/icon.png"
+            "48": "icons/icon.svg",
+            "96": "icons/icon.svg"
         },
         "default_title": "Toggle Keyword Highlighter"
     },
     "options_ui": {
         "page": "options.html",
         "open_in_tab": false
-    },
-    "content_scripts": [
-        {
-            "matches": [
-                "<all_urls>"
-            ],
-            "js": [
-                "content.js"
-            ]
-        }
-    ]
+    }
 }

@@ -1,3 +1,29 @@
+const browser = (typeof globalThis.browser === "undefined" && typeof globalThis.chrome !== "undefined")
+    ? globalThis.chrome
+    : globalThis.browser;
+
+function storageGet(keys) {
+    return new Promise((resolve, reject) => {
+        const result = browser.storage.local.get(keys, (data) => {
+            resolve(data);
+        });
+        if (result && typeof result.then === 'function') {
+            result.then(resolve, reject);
+        }
+    });
+}
+
+function storageSet(items) {
+    return new Promise((resolve, reject) => {
+        const result = browser.storage.local.set(items, () => {
+            resolve();
+        });
+        if (result && typeof result.then === 'function') {
+            result.then(resolve, reject);
+        }
+    });
+}
+
 const defaultSettings = {
     defaultEnabled: true,
     siteList: []
@@ -8,7 +34,7 @@ function saveOptions() {
     const siteListRaw = document.getElementById('siteList').value;
     const siteList = siteListRaw.split('\n').map(s => s.trim()).filter(s => s);
 
-    browser.storage.local.set({
+    storageSet({
         defaultEnabled,
         siteList
     }).then(() => {
@@ -21,7 +47,7 @@ function saveOptions() {
 }
 
 function restoreOptions() {
-    browser.storage.local.get(defaultSettings).then((result) => {
+    storageGet(defaultSettings).then((result) => {
         document.getElementById('defaultEnabled').checked = result.defaultEnabled;
         document.getElementById('siteList').value = result.siteList.join('\n');
     });
