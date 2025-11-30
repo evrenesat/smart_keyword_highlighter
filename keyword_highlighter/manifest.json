@@ -8,8 +8,22 @@
     "96": "icons/icon.svg"
   },
   "permissions": [
-    "storage"
+    "storage",
+    "tabs",
+    "activeTab"
   ],
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  },
+  "action": {
+    "default_icon": {
+      "48": "icons/icon.svg",
+      "96": "icons/icon.svg"
+    },
+    "default_title": "Toggle Keyword Highlighter"
+  },
   "options_ui": {
     "page": "options.html",
     "open_in_tab": false
