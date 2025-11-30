@@ -1,31 +1,29 @@
-# Walkthrough: Fixing Emoji Bullet Bolding & BR Tag Handling
+# Walkthrough - Dynamic Highlighting (Overlay Approach)
 
-## Issue 1: Emoji Bullet Bolding
-The Bolder Userscript was incorrectly bolding the first word after an emoji when that emoji was used as a bullet point (e.g., `🚀 Start`).
-This happened because the script treated the emoji as "visible text", so when it looked back from "Start", it saw the emoji and concluded "Start" was NOT the first word of the block.
+I have updated `bolder.user.js` to use a robust "overlay" approach for highlighting, ensuring compatibility with Firefox's CSS Highlight API.
 
-### Fix
-We modified the `hasVisibleText` function in `bolder.user.js` to strictly check for alphabetic characters (`/[a-zA-Z]/`) when determining if a node contains visible text.
-This means emojis and other symbols are ignored.
+## Changes
 
-## Issue 2: BR Tag Handling
-The script was failing to treat `<br>` tags as block boundaries. This meant that in a list separated by `<br>` tags (but within the same block element like `<p>`), the first word of the second line was being bolded because the script didn't see it as the "start" of a block.
+1.  **Overlay Approach**: Instead of calculating specific colors and using CSS variables (which had compatibility issues in `::highlight`), the script now uses two static highlight registries:
+    -   `bolder-darken`: Applies a semi-transparent black background (`rgba(0, 0, 0, 0.1)`).
+    -   `bolder-lighten`: Applies a semi-transparent white background (`rgba(255, 255, 255, 0.25)`).
+2.  **Background Color Detection**: The script still detects the effective background color of the text's container.
+3.  **Dynamic Selection**:
+    -   If the background is **Light** (luminance > 0.5), it uses the `bolder-darken` highlight (creating a subtle dark tint).
+    -   If the background is **Dark** (luminance <= 0.5), it uses the `bolder-lighten` highlight (creating a subtle light tint).
+4.  **Performance**: This approach is more performant as it avoids setting inline styles on every element.
 
-### Fix
-We modified `isFirstWordInBlock` to explicitly check for `nodeName === 'BR'` when walking backwards. If a `<br>` tag is encountered, it is treated as the start of a block, preventing the immediately following word from being bolded.
+## Testing
 
-## Verification
-We used `emoji_repro.html` and `repro_br_emoji.html` to verify the fixes.
+I created `debug_colors_overlay.html` to verify this specific logic.
+-   **Light Section**: Should show a darkened highlight.
+-   **Dark Section**: Should show a lightened highlight.
 
-### Test Case 1: Emoji Bullet (emoji_repro.html)
-HTML: `<li>🚀 Start should not be bolded.</li>`
-Result: "Start" is **NOT** bolded. (Pass)
-
-### Test Case 2: BR Tag (repro_br_emoji.html)
-HTML: `<p>Item 1<br>✅ Item 2 (Should be skipped)</p>`
-Result: "Item" (in Item 2) is **NOT** bolded. (Pass)
+To test:
+1.  Open `test_colors.html` (or `debug_colors_overlay.html`) in Firefox with the userscript enabled.
+2.  Verify that "IMPORTANT" words are highlighted appropriately against their background.
 
 ## Files
-- `bolder.user.js`: Updated script.
-- `emoji_repro.html`: Reproduction case for emojis.
-- `repro_br_emoji.html`: Reproduction case for BR tags.
+-   `bolder.user.js`: Updated userscript.
+-   `test_colors.html`: Original test case (still valid).
+-   `debug_colors_overlay.html`: Debug file for the overlay approach.

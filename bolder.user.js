@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Bolder
 // @namespace    http://tampermonkey.net/
-// @version      3.0
-// @description  Bolds uppercase and capitalized words using CSS Custom Highlight API, excluding sentence starts and block starts.
+// @version      3.2
+// @description  Highlights uppercase and capitalized words using CSS Custom Highlight API with dynamic background color detection (overlay approach).
 // @author       You
 // @match        *://*/*
 // @grant        none
@@ -51,19 +51,77 @@
         const RE_HYPHENATED = /^\b(?=.*[A-Z])[A-Za-z]+-[A-Za-z]+\b$/;
 
         // --- Highlight Registry ---
-        const highlight = new Highlight();
-        CSS.highlights.set('bolder-highlight', highlight);
-        const activeRanges = new Set(); // Local tracking to avoid Xray iteration issues
+        const highlightDarken = new Highlight();
+        const highlightLighten = new Highlight();
+        CSS.highlights.set('bolder-darken', highlightDarken);
+        CSS.highlights.set('bolder-lighten', highlightLighten);
+
+        // Track which registry a range belongs to for cleanup
+        const activeRanges = new Map(); // Map<Range, Highlight>
 
         // --- CSS Injection ---
         const style = document.createElement('style');
         style.textContent = `
-        ::highlight(bolder-highlight) {
-            font-weight: 700 !important;
-            background-color: #f9f4df;
+        ::highlight(bolder-darken) {
+            background-color: rgba(0, 0, 0, 0.1); /* Darken tint for light backgrounds */
+            color: inherit;
+            text-decoration: none;
+        }
+        ::highlight(bolder-lighten) {
+            background-color: rgba(255, 255, 255, 0.25); /* Lighten tint for dark backgrounds */
+            color: inherit;
+            text-decoration: none;
         }
     `;
         document.head.appendChild(style);
+
+        // --- Color Helpers ---
+        function parseRgb(rgbStr) {
+            const match = rgbStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+            if (!match) return null;
+            return { r: parseInt(match[1]), g: parseInt(match[2]), b: parseInt(match[3]) };
+        }
+
+        function getLuminance(r, g, b) {
+            // Relative luminance formula
+            const a = [r, g, b].map(v => {
+                v /= 255;
+                return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+            });
+            return a[0] * 0.2126 + a[1] * 0.7152 + a[2] * 0.0722;
+        }
+
+        function getEffectiveBackgroundColor(element) {
+            let current = element;
+            while (current && current !== document) {
+                const style = window.getComputedStyle(current);
+                const bg = style.backgroundColor;
+                if (bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)') {
+                    return bg;
+                }
+                current = current.parentElement;
+            }
+            return 'rgb(255, 255, 255)'; // Default to white
+        }
+
+        function isLightBackground(element) {
+            // Cache result on element to avoid re-computation? 
+            // Maybe simple caching:
+            if (element.dataset.bolderIsLight) {
+                return element.dataset.bolderIsLight === 'true';
+            }
+
+            const bgStr = getEffectiveBackgroundColor(element);
+            const rgb = parseRgb(bgStr);
+            let isLight = true;
+            if (rgb) {
+                const lum = getLuminance(rgb.r, rgb.g, rgb.b);
+                isLight = lum > 0.5;
+            }
+
+            element.dataset.bolderIsLight = isLight.toString();
+            return isLight;
+        }
 
         // --- State Management ---
         let atSentenceStart = true;
@@ -90,13 +148,7 @@
                 if (CONFIG.excludedTags.has(current.tagName)) return true;
                 if (current.isContentEditable) return true;
                 if (current.getAttribute('aria-hidden') === 'true') return true;
-
-                // Note: With Highlight API, we don't strictly need to exclude interactive roles 
-                // to prevent breakage, but it might still be good for visual noise reduction.
-                // However, the user specifically wanted bolding in DIVs, so we should be permissive.
-                // We will keep the visibility check.
                 if (current.style.display === 'none' || current.style.visibility === 'hidden' || current.style.opacity === '0') return true;
-
                 current = current.parentElement;
             }
             return false;
@@ -139,23 +191,31 @@
 
             const blockParent = getBlockParent(textNode);
 
-            // Cleanup existing ranges for this node to avoid duplicates
-            // Iterate local Set instead of highlight object
-            for (const range of activeRanges) {
+            // Cleanup existing ranges for this node
+            for (const [range, registry] of activeRanges) {
                 if (range.commonAncestorContainer === textNode) {
-                    highlight.delete(range);
+                    registry.delete(range);
                     activeRanges.delete(range);
                 }
             }
 
-            // Tokenize while preserving separators to track offsets
+            // Determine highlight registry based on background
+            let targetRegistry = highlightDarken; // Default
+            if (textNode.parentElement) {
+                if (isLightBackground(textNode.parentElement)) {
+                    targetRegistry = highlightDarken;
+                } else {
+                    targetRegistry = highlightLighten;
+                }
+            }
+
+            // Tokenize
             const tokens = text.split(/([.!?…:;]|\s+|[^a-zA-Z\-.!?…:;\s]+)/).filter(t => t);
 
             let isBlockStartNode = isFirstWordInBlock(textNode, blockParent);
             let currentOffset = 0;
 
             tokens.forEach(token => {
-                // Check if token is a terminator
                 if (CONFIG.terminators.has(token)) {
                     atSentenceStart = true;
                     isBlockStartNode = false;
@@ -163,13 +223,11 @@
                     return;
                 }
 
-                // Check if token is whitespace or other non-word
                 if (!/^[a-zA-Z\-]+$/.test(token)) {
                     currentOffset += token.length;
                     return;
                 }
 
-                // It's a word
                 const isBlockStart = isBlockStartNode;
                 if (isBlockStart) {
                     isBlockStartNode = false;
@@ -180,7 +238,6 @@
                     atSentenceStart = false;
                 }
 
-                // Decision Logic
                 let shouldBold = false;
                 if (!isBlockStart && !isSentenceStart) {
                     if (RE_UPPERCASE.test(token) || RE_CAPITALIZED.test(token) || RE_MIXED_CASE.test(token) || RE_HYPHENATED.test(token)) {
@@ -192,8 +249,8 @@
                     const range = new Range();
                     range.setStart(textNode, currentOffset);
                     range.setEnd(textNode, currentOffset + token.length);
-                    highlight.add(range);
-                    activeRanges.add(range);
+                    targetRegistry.add(range);
+                    activeRanges.set(range, targetRegistry);
                 }
 
                 currentOffset += token.length;
@@ -223,12 +280,9 @@
 
         // --- Cleanup ---
         function cleanupHighlights() {
-            // Iterate over local Set instead of highlight registry
-            for (const range of activeRanges) {
-                // Check if the range's container is no longer in the document
-                // OR if the container is not a text node (meaning the original text node was removed and range bubbled up)
+            for (const [range, registry] of activeRanges) {
                 if (!range.commonAncestorContainer.isConnected || range.commonAncestorContainer.nodeType !== Node.TEXT_NODE) {
-                    highlight.delete(range);
+                    registry.delete(range);
                     activeRanges.delete(range);
                 }
             }
@@ -250,12 +304,6 @@
                         }
                     });
                 } else if (mutation.type === 'characterData') {
-                    // Text content changed, re-process the node
-                    // First, remove existing ranges for this node to avoid duplicates/invalid ranges
-                    // (Optimization: In a perfect world we'd find the specific range, but cleanup handles detached ones. 
-                    // For attached ones that changed, we might just be adding more. 
-                    // Let's rely on the fact that we are adding new ranges. 
-                    // Ideally we should clear ranges for this node, but the API doesn't index by node.)
                     processTextNode(mutation.target);
                 }
             });
@@ -271,7 +319,6 @@
             characterData: true
         });
 
-        // Periodic cleanup as a safety net (e.g., every 5 seconds)
         setInterval(cleanupHighlights, 5000);
 
     } catch (e) {
