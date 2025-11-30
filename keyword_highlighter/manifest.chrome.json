@@ -4,8 +4,8 @@
     "version": "1.0",
     "description": "Highlights uppercase and capitalized words.",
     "icons": {
-        "48": "icons/icon.svg",
-        "96": "icons/icon.svg"
+        "48": "icons/icon.png",
+        "96": "icons/icon.png"
     },
     "permissions": [
         "storage",
@@ -17,8 +17,8 @@
     },
     "action": {
         "default_icon": {
-            "48": "icons/icon.svg",
-            "96": "icons/icon.svg"
+            "48": "icons/icon.png",
+            "96": "icons/icon.png"
         },
         "default_title": "Toggle Keyword Highlighter"
     },
