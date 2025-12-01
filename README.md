@@ -17,6 +17,21 @@
 *   **Customizable**:
     *   Toggle extension on/off globally or per-site.
     *   Manage site exclusions/inclusions via the options page.
+    *   **Advanced Settings**:
+        *   **Minimum Words in Block**: Configure the minimum word count for a block to be highlighted (default: 10).
+        *   **Custom Colors**: Adjust the background highlight colors and opacity for both light and dark modes.
+
+## Configuration
+
+You can access the configuration page by right-clicking the extension icon and selecting **Options**, or via the extension management page.
+
+### Options
+*   **Enable by default**: Choose whether the extension runs on all sites (except excluded ones) or only on specific sites.
+*   **Site List**: A list of domains to exclude (if enabled by default) or include (if disabled by default).
+*   **Advanced Settings**:
+    *   **Minimum Words in Block**: Prevents highlighting on short snippets of text (e.g., navigation menus, buttons) by setting a minimum word threshold.
+    *   **Darken Background Color**: Sets the highlight color for text on light backgrounds. Use the color picker and opacity slider to customize.
+    *   **Lighten Background Color**: Sets the highlight color for text on dark backgrounds. Use the color picker and opacity slider to customize.
 
 ## Installation
 
