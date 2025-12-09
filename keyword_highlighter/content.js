@@ -73,13 +73,12 @@
             const CONFIG = {
                 minUppercaseLen: 2,
                 minCapitalizedLen: 3,
-                minUppercaseLen: 2,
-                minCapitalizedLen: 3,
                 minWordsInBlock: currentSettings.minWordsInBlock,
                 terminators: new Set(['.', '!', '?', '…', ':', ';']),
                 blockTags: new Set([
                     'DIV', 'P', 'LI', 'TD', 'TH', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
-                    'HEADER', 'FOOTER', 'SECTION', 'ARTICLE', 'ASIDE', 'BLOCKQUOTE', 'FIGCAPTION'
+                    'HEADER', 'FOOTER', 'SECTION', 'ARTICLE', 'ASIDE', 'BLOCKQUOTE', 'FIGCAPTION',
+                    'STRONG', 'B'
                 ]),
                 excludedTags: new Set([
                     'SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'SELECT', 'OPTION',
@@ -247,7 +246,12 @@
                 const blockParent = getBlockParent(textNode);
 
                 // Check word count of the block
-                if (getWordCount(blockParent) < CONFIG.minWordsInBlock) {
+                let minWords = CONFIG.minWordsInBlock;
+                if (blockParent.tagName === 'LI' || blockParent.tagName === 'TD') {
+                    minWords = 3;
+                }
+
+                if (getWordCount(blockParent) < minWords) {
                     return;
                 }
 
