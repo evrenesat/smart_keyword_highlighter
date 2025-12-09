@@ -12,8 +12,15 @@
 *   **Adaptive Contrast**: Intelligently adjusts highlight colors based on the background color (light or dark) to ensure readability.
 *   **Smart Exclusions**:
     *   Ignores sentence starters to prevent over-highlighting.
-    *   Skips specific tags like scripts, styles, inputs, and code blocks.
+    *   Skips specific tags like scripts, styles, inputs, code blocks, and **links (anchor tags)**.
     *   Respects `contenteditable` elements.
+*   **Custom Highlighting**:
+    *   Define custom keywords with specific colors (e.g., `yellow: Python, Java`).
+    *   Supports case-insensitive and whole-word matching.
+*   **Advanced Keyword Registry**:
+    *   **Persistent Memory**: Remembers highlighted keywords per-domain or globally (`*.*`).
+    *   **Retroactive Highlighting**: If a keyword is discovered mid-sentence, it gets added to the registry. On subsequent visits (or retroactively on the same page), it will be highlighted even if it appears at the start of a sentence.
+    *   **Configurable Scope**: Define maximum registry size and scope (global vs. domain-specific).
 *   **Customizable**:
     *   Toggle extension on/off globally or per-site.
     *   Manage site exclusions/inclusions via the options page.
@@ -29,9 +36,10 @@ You can access the configuration page by right-clicking the extension icon and s
 *   **Enable by default**: Choose whether the extension runs on all sites (except excluded ones) or only on specific sites.
 *   **Site List**: A list of domains to exclude (if enabled by default) or include (if disabled by default).
 *   **Advanced Settings**:
-    *   **Minimum Words in Block**: Prevents highlighting on short snippets of text (e.g., navigation menus, buttons) by setting a minimum word threshold.
-    *   **Darken Background Color**: Sets the highlight color for text on light backgrounds. Use the color picker and opacity slider to customize.
-    *   **Lighten Background Color**: Sets the highlight color for text on dark backgrounds. Use the color picker and opacity slider to customize.
+    *   **Minimum Words in Block**: Prevents highlighting on short snippets of text (e.g., navigation menus, buttons) by setting a minimum word threshold. *Smartly handles bullet points by allowing shorter blocks if they start with bullet symbols.*
+    *   **Darken/Lighten Background Color**: Sets the highlight color for text on light/dark backgrounds.
+    *   **Custom Highlights**: Define specific color rules for keywords (e.g., `#ff0000: error, fail`).
+    *   **Keyword Registry**: Configure the persistent registry (e.g., `1000: *.*` for a global 1000-word registry). Includes a "Clear All" button to reset data.
 
 ## Installation
 

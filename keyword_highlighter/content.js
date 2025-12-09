@@ -84,7 +84,7 @@
                 ]),
                 excludedTags: new Set([
                     'SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'SELECT', 'OPTION',
-                    'CODE', 'PRE', 'IFRAME', 'SVG', 'CANVAS', 'KBD', 'VAR'
+                    'CODE', 'PRE', 'IFRAME', 'SVG', 'CANVAS', 'KBD', 'VAR', 'A'
                 ]),
                 excludedAttrs: ['contenteditable']
             };
