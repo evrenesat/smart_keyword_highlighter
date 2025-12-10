@@ -59,6 +59,14 @@
                     placeholder="yellow: python,CI/CD&#10;#cccccc: AI,ML"></textarea>
             </div>
             <div class="setting-row">
+                <label>
+                    <input type="checkbox" id="disableAutoDetect">
+                    Disable Automatic Highlighting (Custom Only)
+                </label>
+                <p class="help-text" style="margin-top: 0;">If checked, only keywords defined above will be highlighted.
+                    Automatic detection will be disabled.</p>
+            </div>
+            <div class="setting-row">
                 <label for="registryConfig">Keyword Registry (Max Size: Domains)</label>
                 <p class="help-text">Effect: Persistently tracks keywords per domain to highlight them even at sentence
                     starts.<br>

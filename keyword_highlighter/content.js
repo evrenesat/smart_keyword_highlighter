@@ -36,6 +36,7 @@
         bolderDarkenBg: 'rgba(0, 0, 0, 0.1)',
         bolderLightenBg: 'rgba(255, 255, 255, 0.25)',
         customHighlights: '',
+        disableAutoDetect: false,
         registryConfig: '1000: *.*'
     };
 
@@ -490,11 +491,22 @@
                     }
                 });
 
+                if (currentSettings.disableAutoDetect) {
+                    return;
+                }
+                // console.log('Bolder: Auto-detect active.');
+
                 // Tokenize
                 const tokens = text.split(/([.!?…:;]|\s+|[^a-zA-Z\-.!?…:;\s]+)/).filter(t => t);
+                // console.log('Bolder: Tokens:', tokens.slice(0, 5));
 
                 let isBlockStartNode = isFirstWordInBlock(textNode, blockParent);
                 let currentOffset = 0;
+
+                // Debug logging for first few tokens
+                // if (tokens.length > 0) {
+                //     console.log(`Bolder: Processing ${tokens.length} tokens. First: "${tokens[0]}", SentenceStart: ${atSentenceStart}`);
+                // }
 
                 tokens.forEach((token, i) => {
                     if (CONFIG.terminators.has(token)) {
@@ -579,6 +591,13 @@
                                     length: token.length
                                 });
                             }
+                        }
+                    } else {
+                        // Automatic Highlight Logic
+                        if (RE_UPPERCASE.test(token)) {
+                            // Match found
+                        } else if (RE_CAPITALIZED.test(token)) {
+                            // Match found
                         }
                     }
 
@@ -670,56 +689,79 @@
 
             // Listen for changes
             browser.storage.onChanged.addListener((changes, area) => {
-                if (area === 'local') {
-                    if (changes.defaultEnabled) currentSettings.defaultEnabled = changes.defaultEnabled.newValue;
-                    if (changes.siteList) currentSettings.siteList = changes.siteList.newValue;
-                    if (changes.minWordsInBlock) {
-                        currentSettings.minWordsInBlock = changes.minWordsInBlock.newValue;
-                        CONFIG.minWordsInBlock = currentSettings.minWordsInBlock;
-                        // Re-run traversal to apply new word count limit
-                        if (isEnabled) {
-                            console.log('Bolder: minWordsInBlock changed, re-evaluating...');
-                            cleanupHighlights();
-                            traverse(document.body);
-                        }
-                    }
-                    if (changes.bolderDarkenBg) currentSettings.bolderDarkenBg = changes.bolderDarkenBg.newValue;
-                    if (changes.bolderLightenBg) currentSettings.bolderLightenBg = changes.bolderLightenBg.newValue;
-                    updateStyles();
+                try {
+                    if (area === 'local') {
+                        let needsTraverse = false;
+                        let needsCleanup = false;
 
-                    if (changes.customHighlights) {
-                        currentSettings.customHighlights = changes.customHighlights.newValue;
-                        cleanupHighlights(); // Remove all old highlights
-                        updateCustomRules(); // Parse new rules
-                        updateStyles();      // Update CSS
-                        if (isEnabled) {
-                            traverse(document.body);
-                        }
-                    }
-                    if (changes.registryConfig) {
-                        currentSettings.registryConfig = changes.registryConfig.newValue;
-                        parseRegistryConfig();
-                        loadRegistry();
-                        // If registry changes, we might want to re-traverse to apply new registry words?
-                        // Or just let it apply on next page load / dynamically?
-                        // Let's re-traverse to be safe and responsive.
-                        cleanupHighlights();
-                        traverse(document.body);
-                    }
+                        // 1. Update Settings
+                        if (changes.defaultEnabled) currentSettings.defaultEnabled = changes.defaultEnabled.newValue;
+                        if (changes.siteList) currentSettings.siteList = changes.siteList.newValue;
 
-                    const newEnabled = checkEnabled(currentSettings);
-                    if (newEnabled !== isEnabled) {
-                        isEnabled = newEnabled;
+                        if (changes.minWordsInBlock) {
+                            currentSettings.minWordsInBlock = changes.minWordsInBlock.newValue;
+                            CONFIG.minWordsInBlock = currentSettings.minWordsInBlock;
+                            if (isEnabled) {
+                                console.log('Bolder: minWordsInBlock changed, re-evaluating...');
+                                needsCleanup = true;
+                                needsTraverse = true;
+                            }
+                        }
+
+                        if (changes.bolderDarkenBg) currentSettings.bolderDarkenBg = changes.bolderDarkenBg.newValue;
+                        if (changes.bolderLightenBg) currentSettings.bolderLightenBg = changes.bolderLightenBg.newValue;
+                        if (changes.bolderDarkenBg || changes.bolderLightenBg) {
+                            updateStyles();
+                        }
+
+                        if (changes.customHighlights) {
+                            currentSettings.customHighlights = changes.customHighlights.newValue;
+                            updateCustomRules();
+                            updateStyles();
+                            needsCleanup = true;
+                            needsTraverse = true;
+                        }
+
+                        if (changes.registryConfig) {
+                            currentSettings.registryConfig = changes.registryConfig.newValue;
+                            parseRegistryConfig();
+                            loadRegistry();
+                            needsCleanup = true;
+                            needsTraverse = true;
+                        }
+
+                        if (changes.disableAutoDetect) {
+                            currentSettings.disableAutoDetect = changes.disableAutoDetect.newValue;
+                            needsCleanup = true;
+                            needsTraverse = true;
+                        }
+
+                        // 2. Handle Enable/Disable State
+                        const newEnabled = checkEnabled(currentSettings);
+                        if (newEnabled !== isEnabled) {
+                            isEnabled = newEnabled;
+                            if (isEnabled) {
+                                console.log('Bolder: Enabled by settings change.');
+                                traverse(document.body);
+                                observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+                                needsTraverse = false; // Already traversed
+                            } else {
+                                console.log('Bolder: Disabled by settings change.');
+                                cleanupHighlights();
+                                observer.disconnect();
+                                needsCleanup = false; // Already cleaned
+                                needsTraverse = false;
+                            }
+                        }
+
+                        // 3. Apply updates if needed and still enabled
                         if (isEnabled) {
-                            console.log('Bolder: Enabled by settings change.');
-                            traverse(document.body);
-                            observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-                        } else {
-                            console.log('Bolder: Disabled by settings change.');
-                            cleanupHighlights();
-                            observer.disconnect();
+                            if (needsCleanup) cleanupHighlights();
+                            if (needsTraverse) traverse(document.body);
                         }
                     }
+                } catch (e) {
+                    console.error('Bolder: Error in storage listener', e);
                 }
             });
 

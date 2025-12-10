@@ -5,6 +5,7 @@ const defaultSettings = {
     bolderDarkenBg: 'rgba(0, 0, 0, 0.1)',
     bolderLightenBg: 'rgba(255, 255, 255, 0.25)',
     customHighlights: '',
+    disableAutoDetect: false,
     registryConfig: '1000: *.*'
 };
 
@@ -54,6 +55,7 @@ function saveOptions() {
         bolderDarkenBg,
         bolderLightenBg,
         customHighlights: document.getElementById('customHighlights').value,
+        disableAutoDetect: document.getElementById('disableAutoDetect').checked,
         registryConfig: document.getElementById('registryConfig').value
     }).then(() => {
         const status = document.getElementById('status');
@@ -70,6 +72,7 @@ function restoreOptions() {
         document.getElementById('siteList').value = result.siteList.join('\n');
         document.getElementById('minWordsInBlock').value = result.minWordsInBlock;
         document.getElementById('customHighlights').value = result.customHighlights || '';
+        document.getElementById('disableAutoDetect').checked = result.disableAutoDetect || false;
         document.getElementById('registryConfig').value = result.registryConfig || '1000: *.*';
 
         const darken = rgbaToHexOpacity(result.bolderDarkenBg);
@@ -89,6 +92,7 @@ document.getElementById('defaultEnabled').addEventListener('change', saveOptions
 document.getElementById('siteList').addEventListener('input', saveOptions);
 document.getElementById('minWordsInBlock').addEventListener('input', saveOptions);
 document.getElementById('customHighlights').addEventListener('input', saveOptions);
+document.getElementById('disableAutoDetect').addEventListener('change', saveOptions);
 document.getElementById('registryConfig').addEventListener('input', saveOptions);
 
 ['bolderDarken', 'bolderLighten'].forEach(prefix => {

@@ -39,6 +39,7 @@ You can access the configuration page by right-clicking the extension icon and s
     *   **Minimum Words in Block**: Prevents highlighting on short snippets of text (e.g., navigation menus, buttons) by setting a minimum word threshold. *Smartly handles bullet points by allowing shorter blocks if they start with bullet symbols.*
     *   **Darken/Lighten Background Color**: Sets the highlight color for text on light/dark backgrounds.
     *   **Custom Highlights**: Define specific color rules for keywords (e.g., `#ff0000: error, fail`).
+    *   **Disable Automatic Highlighting**: Option to strictly use only custom highlights, disabling all heuristic-based detection.
     *   **Keyword Registry**: Configure the persistent registry (e.g., `1000: *.*` for a global 1000-word registry). Includes a "Clear All" button to reset data.
 
 ## Installation
