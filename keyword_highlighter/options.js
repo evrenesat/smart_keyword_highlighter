@@ -32,7 +32,9 @@ function hexOpacityToRgba(hex, opacity) {
 
 function updateColorDisplay(prefix) {
     const opacity = document.getElementById(`${prefix}Opacity`).value;
+    const color = document.getElementById(`${prefix}Color`).value;
     document.getElementById(`${prefix}OpacityVal`).textContent = opacity;
+    document.getElementById(`${prefix}Hex`).textContent = color;
 }
 
 function saveOptions() {
@@ -52,10 +54,7 @@ function saveOptions() {
 
     const excludedTagsInput = document.getElementById('excludedTagsConfig').value;
 
-    // Validation: Ensure *.* exists
-    // Simple check: does it contain "*.*:" or "*.* :"
-    // We can be a bit more robust or just simple string check.
-    // Let's rely on simple string check for now.
+    // Validation
     if (!excludedTagsInput.includes('*.*')) {
         const confirmed = confirm('Warning: Your excluded tags configuration is missing the global wildcard (*.*). This might cause unexpected behavior on undefined sites. Are you sure you want to save?');
         if (!confirmed) {
@@ -123,14 +122,17 @@ document.getElementById('resetExcludedTags').addEventListener('click', () => {
 });
 
 ['bolderDarken', 'bolderLighten'].forEach(prefix => {
-    document.getElementById(`${prefix}Color`).addEventListener('input', saveOptions);
+    document.getElementById(`${prefix}Color`).addEventListener('input', (e) => {
+        updateColorDisplay(prefix);
+        saveOptions();
+    });
     document.getElementById(`${prefix}Opacity`).addEventListener('input', (e) => {
         updateColorDisplay(prefix);
         saveOptions();
     });
 });
 
-document.getElementById('clearRegistry').addEventListener('click', () => {
+document.getElementById('clearRegistries').addEventListener('click', () => {
     browser.storage.local.get(null).then((items) => {
         const keysToRemove = Object.keys(items).filter(key => key.startsWith('bolder_registry_'));
         if (keysToRemove.length > 0) {
