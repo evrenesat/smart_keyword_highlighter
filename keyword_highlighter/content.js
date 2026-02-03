@@ -286,6 +286,12 @@
             let atSentenceStart = true;
             let lastBlockParent = null;
             const REGISTRY_MIN_LEN = 5;
+            let cleanupIntervalId = null;
+
+            function resetTraversalState() {
+                atSentenceStart = true;
+                lastBlockParent = null;
+            }
 
             // --- Registry Management ---
             let registry = new Set();
@@ -620,6 +626,12 @@
                 //     console.log(`Bolder: Processing ${tokens.length} tokens. First: "${tokens[0]}", SentenceStart: ${atSentenceStart}`);
                 // }
 
+                function isRegistryStartCandidate(token) {
+                    // Avoid highlighting plain Capitalized words at sentence/block start,
+                    // which are often just sentence case.
+                    return RE_UPPERCASE.test(token) || RE_MIXED_CASE.test(token) || RE_HYPHENATED.test(token);
+                }
+
                 tokens.forEach((token, i) => {
                     if (isSentenceTerminator(token, tokens, i)) {
                         atSentenceStart = true;
@@ -670,7 +682,7 @@
                     } else if (isSentenceStart || isBlockStart) {
                         // Check if it's in registry
                         const lowerToken = token.toLowerCase();
-                        if (token.length >= REGISTRY_MIN_LEN && registry.has(lowerToken)) {
+                        if (token.length >= REGISTRY_MIN_LEN && registry.has(lowerToken) && isRegistryStartCandidate(token)) {
                             const range = new Range();
                             range.setStart(textNode, currentOffset);
                             range.setEnd(textNode, currentOffset + token.length);
@@ -728,10 +740,49 @@
 
             // --- Cleanup ---
             function cleanupHighlights() {
-                for (const [range, registry] of activeRanges) {
-                    registry.delete(range);
-                    activeRanges.delete(range);
+                if (highlightDarken && typeof highlightDarken.clear === 'function') {
+                    highlightDarken.clear();
                 }
+                if (highlightLighten && typeof highlightLighten.clear === 'function') {
+                    highlightLighten.clear();
+                }
+                customRules.forEach(rule => {
+                    const registry = CSS.highlights.get(rule.highlightName);
+                    if (registry && typeof registry.clear === 'function') {
+                        registry.clear();
+                    }
+                });
+                activeRanges.clear();
+            }
+
+            function ensureCleanupInterval() {
+                if (cleanupIntervalId !== null) return;
+                cleanupIntervalId = setInterval(() => {
+                    if (!isEnabled) return;
+                    for (const [range, registry] of activeRanges) {
+                        if (!range.commonAncestorContainer.isConnected || range.commonAncestorContainer.nodeType !== Node.TEXT_NODE) {
+                            registry.delete(range);
+                            activeRanges.delete(range);
+                        }
+                    }
+                }, 5000);
+            }
+
+            function applyEnabledState(newEnabled) {
+                if (newEnabled === isEnabled) return false;
+                isEnabled = newEnabled;
+                resetTraversalState();
+                if (isEnabled) {
+                    console.log('Bolder: Enabled by settings change.');
+                    traverse(document.body);
+                    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+                    ensureCleanupInterval();
+                } else {
+                    console.log('Bolder: Disabled by settings change.');
+                    cleanupHighlights();
+                    observer.disconnect();
+                }
+                return true;
             }
 
             // --- MutationObserver ---
@@ -771,20 +822,14 @@
             // Start logic
             isEnabled = checkEnabled(currentSettings);
             if (isEnabled) {
+                resetTraversalState();
                 traverse(document.body);
                 observer.observe(document.body, {
                     childList: true,
                     subtree: true,
                     characterData: true
                 });
-                setInterval(() => {
-                    for (const [range, registry] of activeRanges) {
-                        if (!range.commonAncestorContainer.isConnected || range.commonAncestorContainer.nodeType !== Node.TEXT_NODE) {
-                            registry.delete(range);
-                            activeRanges.delete(range);
-                        }
-                    }
-                }, 5000);
+                ensureCleanupInterval();
             } else {
                 console.log('Bolder: Disabled on this site by settings.');
             }
@@ -847,20 +892,9 @@
 
                         // 2. Handle Enable/Disable State
                         const newEnabled = checkEnabled(currentSettings);
-                        if (newEnabled !== isEnabled) {
-                            isEnabled = newEnabled;
-                            if (isEnabled) {
-                                console.log('Bolder: Enabled by settings change.');
-                                traverse(document.body);
-                                observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-                                needsTraverse = false; // Already traversed
-                            } else {
-                                console.log('Bolder: Disabled by settings change.');
-                                cleanupHighlights();
-                                observer.disconnect();
-                                needsCleanup = false; // Already cleaned
-                                needsTraverse = false;
-                            }
+                        if (applyEnabledState(newEnabled)) {
+                            needsCleanup = false;
+                            needsTraverse = false;
                         }
 
                         // 3. Apply updates if needed and still enabled
@@ -871,6 +905,16 @@
                     }
                 } catch (e) {
                     console.error('Bolder: Error in storage listener', e);
+                }
+            });
+
+            browser.runtime.onMessage.addListener((message) => {
+                try {
+                    if (!message || message.type !== 'bolder-site-enabled-changed') return;
+                    if (typeof message.enabled !== 'boolean') return;
+                    applyEnabledState(message.enabled);
+                } catch (e) {
+                    console.error('Bolder: Error handling message', e);
                 }
             });
 

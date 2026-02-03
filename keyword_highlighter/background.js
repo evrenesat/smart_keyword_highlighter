@@ -107,6 +107,11 @@ browser.action.onClicked.addListener(async (tab) => {
         const newSettings = { ...settings, siteList: newSiteList };
         const enabled = isSiteEnabled(tab.url, newSettings);
         updateIcon(tab.id, enabled);
+        try {
+            await browser.tabs.sendMessage(tab.id, { type: 'bolder-site-enabled-changed', enabled });
+        } catch (e) {
+            // Ignore if the content script is not available for this tab.
+        }
 
     } catch (e) {
         console.error("Error toggling site:", e);

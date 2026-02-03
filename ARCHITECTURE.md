@@ -6,12 +6,12 @@ Keyword Highlighter is a browser extension (Manifest V3) that applies highlight 
 ## High-Level Flow
 1. Content script loads settings from `browser.storage.local`.
 2. Content script scans text nodes, tokenizes them, and applies highlight ranges via the Custom Highlight API.
-3. Background script updates toolbar icon state based on per-site enablement.
+3. Background script updates toolbar icon state and sends an explicit message to the content script when per-site enablement is toggled.
 4. Options page updates settings, which trigger content script listeners to re-scan and re-render.
 
 ## Components
 - `keyword_highlighter/content.js` — main highlight engine; reads settings, applies custom styles, manages highlight ranges, and watches DOM mutations.
-- `keyword_highlighter/background.js` — tracks tab URLs, toggles per-site enablement, and updates the toolbar icon.
+- `keyword_highlighter/background.js` — tracks tab URLs, toggles per-site enablement, updates the toolbar icon, and signals content scripts on toggle.
 - `keyword_highlighter/options.html` — options UI markup.
 - `keyword_highlighter/options.js` — options UI logic; validates and persists settings, provides registry reset.
 - `keyword_highlighter/options.css` — options UI styles.

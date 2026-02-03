@@ -38,3 +38,19 @@ Next steps
   - `keyword_highlighter/content.js`
 - Notes
   - `REGISTRY_MIN_LEN` default set to 5; short words won’t be stored or highlighted from the registry at sentence/block start.
+
+## 2026-02-03 (continued 3)
+- Work
+  - Tightened registry-based sentence/block start highlighting to exclude plain Capitalized words.
+- Rationale
+  - Sentence starters in normal sentence case (e.g., “Finance”) should not be highlighted even if the word exists in the registry.
+- Files
+  - `keyword_highlighter/content.js`
+
+## 2026-02-03 (continued 4)
+- Work
+  - Made per-site enable/disable more reliable by clearing highlight registries on disable and sending an explicit toggle message from background to content scripts.
+  - Added a cleanup interval guard so it starts even if a site is enabled after initial load.
+- Files
+  - `keyword_highlighter/content.js`
+  - `keyword_highlighter/background.js`
