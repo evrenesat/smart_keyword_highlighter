@@ -284,6 +284,8 @@
 
             // --- State Management ---
             let atSentenceStart = true;
+            let lastBlockParent = null;
+            const REGISTRY_MIN_LEN = 5;
 
             // --- Registry Management ---
             let registry = new Set();
@@ -405,6 +407,7 @@
 
             function addToRegistry(word) {
                 if (!registryStorageKey) return;
+                if (word.length < REGISTRY_MIN_LEN) return;
                 const lowerWord = word.toLowerCase(); // Store lowercase for case-insensitive matching
                 if (registry.has(lowerWord)) return;
 
@@ -437,16 +440,20 @@
                 return document.body;
             }
 
-            function shouldSkipNode(node) {
+            function getSkipReason(node) {
                 let current = node.parentElement;
                 while (current) {
-                    if (CONFIG.excludedTags.has(current.tagName)) return true;
-                    if (current.isContentEditable) return true;
-                    if (current.getAttribute('aria-hidden') === 'true') return true;
-                    if (current.style.display === 'none' || current.style.visibility === 'hidden' || current.style.opacity === '0') return true;
+                    if (CONFIG.excludedTags.has(current.tagName)) return 'excluded-tag';
+                    if (current.isContentEditable) return 'contenteditable';
+                    if (current.getAttribute('aria-hidden') === 'true') return 'aria-hidden';
+                    if (current.style.display === 'none' || current.style.visibility === 'hidden' || current.style.opacity === '0') return 'hidden-style';
                     current = current.parentElement;
                 }
-                return false;
+                return null;
+            }
+
+            function shouldSkipNode(node) {
+                return getSkipReason(node) !== null;
             }
 
             function hasVisibleText(node) {
@@ -488,14 +495,64 @@
                 return count;
             }
 
+            function isSentenceTerminator(token, tokens, i) {
+                if (!CONFIG.terminators.has(token)) return false;
+
+                if (token !== '.') {
+                    return true;
+                }
+
+                // Check for common abbreviations to avoid resetting sentence start
+                // e.g. (e . g .) -> look back 3
+                if (i >= 3 && tokens[i - 1] === 'g' && tokens[i - 2] === '.' && tokens[i - 3] === 'e') return false;
+                if (i >= 3 && tokens[i - 1] === 'e' && tokens[i - 2] === '.' && tokens[i - 3] === 'i') return false;
+                // etc. vs. ex. (word .) -> look back 1
+                if (i >= 1 && ['etc', 'vs', 'ex', 'approx'].includes(tokens[i - 1].toLowerCase())) return false;
+
+                return true;
+            }
+
+            function updateSentenceStateFromText(text) {
+                if (!text || !text.trim()) return;
+
+                const tokens = text.split(/([.!?…:;]|\s+|[^a-zA-Z\-.!?…:;\s]+)/).filter(t => t);
+                tokens.forEach((token, i) => {
+                    if (isSentenceTerminator(token, tokens, i)) {
+                        atSentenceStart = true;
+                        return;
+                    }
+
+                    if (!/^[a-zA-Z\-]+$/.test(token)) {
+                        return;
+                    }
+
+                    if (atSentenceStart) {
+                        atSentenceStart = false;
+                    }
+                });
+            }
+
             function processTextNode(textNode) {
                 if (!isEnabled) return; // Stop if disabled
-                if (shouldSkipNode(textNode)) return;
+
+                const skipReason = getSkipReason(textNode);
+                if (skipReason) {
+                    if (skipReason === 'excluded-tag') {
+                        // Preserve sentence boundaries across excluded tags (e.g., links),
+                        // so sentence-start suppression remains accurate.
+                        updateSentenceStateFromText(textNode.nodeValue);
+                    }
+                    return;
+                }
 
                 const text = textNode.nodeValue;
                 if (!text.trim()) return;
 
                 const blockParent = getBlockParent(textNode);
+                if (blockParent !== lastBlockParent) {
+                    atSentenceStart = true;
+                    lastBlockParent = blockParent;
+                }
 
                 // Check word count of the block
                 let minWords = CONFIG.minWordsInBlock;
@@ -564,21 +621,9 @@
                 // }
 
                 tokens.forEach((token, i) => {
-                    if (CONFIG.terminators.has(token)) {
-                        let isAbbreviation = false;
-                        if (token === '.') {
-                            // Check for common abbreviations to avoid resetting sentence start
-                            // e.g. (e . g .) -> look back 3
-                            if (i >= 3 && tokens[i - 1] === 'g' && tokens[i - 2] === '.' && tokens[i - 3] === 'e') isAbbreviation = true;
-                            else if (i >= 3 && tokens[i - 1] === 'e' && tokens[i - 2] === '.' && tokens[i - 3] === 'i') isAbbreviation = true;
-                            // etc. vs. ex. (word .) -> look back 1
-                            else if (i >= 1 && ['etc', 'vs', 'ex', 'approx'].includes(tokens[i - 1].toLowerCase())) isAbbreviation = true;
-                        }
-
-                        if (!isAbbreviation) {
-                            atSentenceStart = true;
-                            isBlockStartNode = false;
-                        }
+                    if (isSentenceTerminator(token, tokens, i)) {
+                        atSentenceStart = true;
+                        isBlockStartNode = false;
                         currentOffset += token.length;
                         return;
                     }
@@ -625,7 +670,7 @@
                     } else if (isSentenceStart || isBlockStart) {
                         // Check if it's in registry
                         const lowerToken = token.toLowerCase();
-                        if (registry.has(lowerToken)) {
+                        if (token.length >= REGISTRY_MIN_LEN && registry.has(lowerToken)) {
                             const range = new Range();
                             range.setStart(textNode, currentOffset);
                             range.setEnd(textNode, currentOffset + token.length);
@@ -636,15 +681,17 @@
                             // Only if it *would* be highlighted if it wasn't at start
                             // Re-check criteria (uppercase, capitalized etc)
                             if (RE_UPPERCASE.test(token) || RE_CAPITALIZED.test(token) || RE_MIXED_CASE.test(token) || RE_HYPHENATED.test(token)) {
-                                const lowerToken = token.toLowerCase();
-                                if (!skippedCandidates.has(lowerToken)) {
-                                    skippedCandidates.set(lowerToken, []);
+                                if (token.length >= REGISTRY_MIN_LEN) {
+                                    const lowerToken = token.toLowerCase();
+                                    if (!skippedCandidates.has(lowerToken)) {
+                                        skippedCandidates.set(lowerToken, []);
+                                    }
+                                    skippedCandidates.get(lowerToken).push({
+                                        node: textNode,
+                                        offset: currentOffset,
+                                        length: token.length
+                                    });
                                 }
-                                skippedCandidates.get(lowerToken).push({
-                                    node: textNode,
-                                    offset: currentOffset,
-                                    length: token.length
-                                });
                             }
                         }
                     } else {
