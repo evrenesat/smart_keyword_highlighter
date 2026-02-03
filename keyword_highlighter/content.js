@@ -38,7 +38,8 @@
         customHighlights: '',
         disableAutoDetect: false,
         registryConfig: '1000: *.*',
-        excludedTagsConfig: '*.*: SCRIPT, STYLE, NOSCRIPT, TEXTAREA, INPUT, SELECT, OPTION, CODE, PRE, IFRAME, SVG, CANVAS, KBD, VAR, A'
+        excludedTagsConfig: '*.*: SCRIPT, STYLE, NOSCRIPT, TEXTAREA, INPUT, SELECT, OPTION, CODE, PRE, IFRAME, SVG, CANVAS, KBD, VAR, A',
+        skipShortMetadataLines: false
     };
 
     let isEnabled = false;
@@ -78,6 +79,7 @@
                 minUppercaseLen: 2,
                 minCapitalizedLen: 3,
                 minWordsInBlock: currentSettings.minWordsInBlock,
+                shortMetadataMaxWords: 8,
                 terminators: new Set(['.', '!', '?', '…', ':', ';', '-', '–', '—', '•', '●', '*', '■']),
                 blockTags: new Set([
                     'DIV', 'P', 'LI', 'TD', 'TH', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
@@ -501,6 +503,36 @@
                 return count;
             }
 
+            function shouldSkipAutoDetectForBlock(blockParent) {
+                if (!currentSettings.skipShortMetadataLines) return false;
+
+                const text = (blockParent.innerText || '').trim();
+                if (!text) return false;
+
+                const wordCount = getWordCount(blockParent);
+                if (wordCount > CONFIG.shortMetadataMaxWords) return false;
+
+                // If it looks like a sentence, keep auto-detect.
+                if (/[.!?]/.test(text)) return false;
+
+                // Metadata lines often use commas/parentheses (locations, tags).
+                if (!/[,()]/.test(text)) return false;
+
+                const tokens = text.split(/[^A-Za-z-]+/).filter(Boolean);
+                if (tokens.length < 2) return false;
+
+                let titleCaseCount = 0;
+                tokens.forEach(token => {
+                    if (/^[A-Z][a-z]/.test(token) || /^[A-Z]{2,}$/.test(token)) {
+                        titleCaseCount += 1;
+                    }
+                });
+
+                if (titleCaseCount / tokens.length < 0.6) return false;
+
+                return true;
+            }
+
             function isSentenceTerminator(token, tokens, i) {
                 if (!CONFIG.terminators.has(token)) return false;
 
@@ -574,6 +606,8 @@
                     return;
                 }
 
+                const skipAutoDetectForBlock = shouldSkipAutoDetectForBlock(blockParent);
+
                 // Cleanup existing ranges for this node
                 for (const [range, registry] of activeRanges) {
                     if (range.commonAncestorContainer === textNode) {
@@ -609,7 +643,7 @@
                     }
                 });
 
-                if (currentSettings.disableAutoDetect) {
+                if (currentSettings.disableAutoDetect || skipAutoDetectForBlock) {
                     return;
                 }
                 // console.log('Bolder: Auto-detect active.');
@@ -886,6 +920,12 @@
 
                         if (changes.disableAutoDetect) {
                             currentSettings.disableAutoDetect = changes.disableAutoDetect.newValue;
+                            needsCleanup = true;
+                            needsTraverse = true;
+                        }
+
+                        if (changes.skipShortMetadataLines) {
+                            currentSettings.skipShortMetadataLines = changes.skipShortMetadataLines.newValue;
                             needsCleanup = true;
                             needsTraverse = true;
                         }

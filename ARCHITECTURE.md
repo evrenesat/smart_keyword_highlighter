@@ -26,7 +26,7 @@ Keyword Highlighter is a browser extension (Manifest V3) that applies highlight 
 6. Ranges are tracked in `activeRanges` for cleanup; a MutationObserver re-processes changed nodes.
 
 ## Settings and Storage
-- Settings stored in `browser.storage.local` include enablement, auto-detect configuration, colors, custom rules, registry config, and excluded tags.
+- Settings stored in `browser.storage.local` include enablement, auto-detect configuration, colors, custom rules, registry config, excluded tags, and optional short-metadata suppression.
 - Registry stored per-domain or globally as `bolder_registry_<hostname>` or `bolder_registry_global`.
 - Retroactive highlighting uses `skippedCandidates` to apply highlight if a token later becomes known.
 

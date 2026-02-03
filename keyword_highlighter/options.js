@@ -8,7 +8,8 @@ const defaultSettings = {
     bolderLightenBg: 'rgba(255, 255, 255, 0.25)',
     customHighlights: '',
     disableAutoDetect: false,
-    registryConfig: '1000: *.*'
+    registryConfig: '1000: *.*',
+    skipShortMetadataLines: false
 };
 
 function rgbaToHexOpacity(rgba) {
@@ -65,6 +66,7 @@ function saveOptions() {
     const customHighlights = document.getElementById('customHighlights').value;
     const registryConfig = document.getElementById('registryConfig').value;
     const disableAutoDetect = document.getElementById('disableAutoDetect').checked;
+    const skipShortMetadataLines = document.getElementById('skipShortMetadataLines').checked;
 
     browser.storage.local.set({
         defaultEnabled,
@@ -75,7 +77,8 @@ function saveOptions() {
         customHighlights,
         disableAutoDetect,
         registryConfig,
-        excludedTagsConfig: excludedTagsInput
+        excludedTagsConfig: excludedTagsInput,
+        skipShortMetadataLines
     }).then(() => {
         const status = document.getElementById('status');
         status.textContent = 'Options saved.';
@@ -94,6 +97,7 @@ function restoreOptions() {
         document.getElementById('disableAutoDetect').checked = result.disableAutoDetect || false;
         document.getElementById('registryConfig').value = result.registryConfig || '1000: *.*';
         document.getElementById('excludedTagsConfig').value = result.excludedTagsConfig || DEFAULT_EXCLUDED_TAGS_CONFIG;
+        document.getElementById('skipShortMetadataLines').checked = result.skipShortMetadataLines || false;
 
         const darken = rgbaToHexOpacity(result.bolderDarkenBg);
         document.getElementById('bolderDarkenColor').value = darken.hex;
@@ -115,6 +119,7 @@ document.getElementById('customHighlights').addEventListener('input', saveOption
 document.getElementById('disableAutoDetect').addEventListener('change', saveOptions);
 document.getElementById('registryConfig').addEventListener('input', saveOptions);
 document.getElementById('excludedTagsConfig').addEventListener('input', saveOptions);
+document.getElementById('skipShortMetadataLines').addEventListener('change', saveOptions);
 
 document.getElementById('resetExcludedTags').addEventListener('click', () => {
     document.getElementById('excludedTagsConfig').value = DEFAULT_EXCLUDED_TAGS_CONFIG;

@@ -54,3 +54,12 @@ Next steps
 - Files
   - `keyword_highlighter/content.js`
   - `keyword_highlighter/background.js`
+
+## 2026-02-03 (continued 5)
+- Work
+  - Added an optional setting to skip auto-detect highlights on short metadata-like lines (comma/parenthesis-heavy, Title Case, no sentence terminator).
+- Files
+  - `keyword_highlighter/content.js`
+  - `keyword_highlighter/options.html`
+  - `keyword_highlighter/options.js`
+  - `ARCHITECTURE.md`
