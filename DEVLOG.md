@@ -4,7 +4,8 @@
 Summary: Added extra options-page documentation, hardened content-script startup to wait for `document.body` and reattach if the body is replaced, and added startup/body-swap logging.
 Findings: None.
 Hypotheses: LinkedIn intermittently replaces the body early in SPA boot, which can detach the original observer and skip initial traversal.
-Notes: Removed the unused `activeTab` permission from the Chrome manifest.
+Notes: Removed the unused `activeTab` permission from Chrome/Firefox manifests and rebuilt dist packages.
+Additional: Updated README with new screenshots and small grammar fixes.
 
 ## 2026-02-03
 Summary: Scanned the extension codebase and documented architecture.

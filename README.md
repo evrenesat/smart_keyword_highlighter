@@ -2,6 +2,12 @@
 
 **Keyword Highlighter** is a browser extension that improves reading focus by automatically highlighting uppercase and capitalized words on web pages.
 
+## Screenshots
+
+![Highlight example](assets/highlight-example-1.png)
+
+![Options page](assets/options.png)
+
 ## Features
 
 *   **Smart Highlighting**: Automatically detects and highlights:
@@ -22,7 +28,7 @@
     *   **Retroactive Highlighting**: If a keyword is discovered mid-sentence, it gets added to the registry. On subsequent visits (or retroactively on the same page), it will be highlighted even if it appears at the start of a sentence.
     *   **Configurable Scope**: Define maximum registry size and scope (global vs. domain-specific).
 *   **Customizable**:
-    *   Toggle extension on/off globally or per-site.
+    *   Toggle the extension on or off globally or per-site.
     *   Manage site exclusions/inclusions via the options page.
     *   **Advanced Settings**:
         *   **Minimum Words in Block**: Configure the minimum word count for a block to be highlighted (default: 10).
@@ -36,7 +42,7 @@ You can access the configuration page by right-clicking the extension icon and s
 *   **Enable by default**: Choose whether the extension runs on all sites (except excluded ones) or only on specific sites.
 *   **Site List**: A list of domains to exclude (if enabled by default) or include (if disabled by default).
 *   **Advanced Settings**:
-    *   **Minimum Words in Block**: Prevents highlighting on short snippets of text (e.g., navigation menus, buttons) by setting a minimum word threshold. *Smartly handles bullet points by allowing shorter blocks if they start with bullet symbols.*
+    *   **Minimum Words in Block**: Prevents highlighting on short snippets of text (e.g., navigation menus, buttons) by setting a minimum word threshold. *Smartly handles bullet points by allowing shorter blocks when they start with bullet symbols.*
     *   **Darken/Lighten Background Color**: Sets the highlight color for text on light/dark backgrounds.
     *   **Custom Highlights**: Define specific color rules for keywords (e.g., `#ff0000: error, fail`).
     *   **Disable Automatic Highlighting**: Option to strictly use only custom highlights, disabling all heuristic-based detection.
@@ -76,7 +82,7 @@ You can access the configuration page by right-clicking the extension icon and s
 
 ### Build
 
-To build the project (if applicable for future steps, currently scripts are direct):
+To build the project:
 ```bash
 npm run build
 ```
