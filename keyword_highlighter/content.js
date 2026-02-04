@@ -785,7 +785,7 @@
 
             // --- Traversal ---
             function traverse(root) {
-                if (!isEnabled) return;
+                if (!isEnabled || !root) return;
                 const walker = document.createTreeWalker(
                     root,
                     NodeFilter.SHOW_TEXT,
@@ -832,15 +832,64 @@
                 }, 5000);
             }
 
+            let observedRoot = null;
+            let bodyWaitObserver = null;
+
+            function attachToRoot(root) {
+                if (!root) return false;
+                if (observedRoot !== root) {
+                    console.log('Bolder: Attaching to new root node.');
+                    cleanupHighlights();
+                    resetTraversalState();
+                    observedRoot = root;
+                }
+                observer.disconnect();
+                observer.observe(root, { childList: true, subtree: true, characterData: true });
+                return true;
+            }
+
+            function ensureBodyAvailable() {
+                if (document.body) return true;
+                console.log('Bolder: document.body not ready. Waiting for body before first traverse.');
+                if (!bodyWaitObserver) {
+                    bodyWaitObserver = new MutationObserver(() => {
+                        if (document.body && observedRoot !== document.body) {
+                            console.log('Bolder: document.body detected via mutation observer.');
+                            bodyWaitObserver.disconnect();
+                            bodyWaitObserver = null;
+                            if (isEnabled) {
+                                attachToRoot(document.body);
+                                traverse(document.body);
+                                ensureCleanupInterval();
+                            }
+                        }
+                    });
+                    bodyWaitObserver.observe(document.documentElement, { childList: true });
+                }
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', () => {
+                        if (document.body && observedRoot !== document.body && isEnabled) {
+                            console.log('Bolder: document.body detected on DOMContentLoaded.');
+                            attachToRoot(document.body);
+                            traverse(document.body);
+                            ensureCleanupInterval();
+                        }
+                    }, { once: true });
+                }
+                return false;
+            }
+
             function applyEnabledState(newEnabled) {
                 if (newEnabled === isEnabled) return false;
                 isEnabled = newEnabled;
                 resetTraversalState();
                 if (isEnabled) {
                     console.log('Bolder: Enabled by settings change.');
-                    traverse(document.body);
-                    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-                    ensureCleanupInterval();
+                    if (ensureBodyAvailable()) {
+                        attachToRoot(document.body);
+                        traverse(document.body);
+                        ensureCleanupInterval();
+                    }
                 } else {
                     console.log('Bolder: Disabled by settings change.');
                     cleanupHighlights();
@@ -883,17 +932,27 @@
                 }
             });
 
+            const bodySwapObserver = new MutationObserver(() => {
+                if (!isEnabled) return;
+                if (!document.body) return;
+                if (observedRoot !== document.body) {
+                    console.log('Bolder: document.body replaced. Reattaching observers.');
+                    attachToRoot(document.body);
+                    traverse(document.body);
+                    ensureCleanupInterval();
+                }
+            });
+            bodySwapObserver.observe(document.documentElement, { childList: true });
+
             // Start logic
             isEnabled = checkEnabled(currentSettings);
             if (isEnabled) {
                 resetTraversalState();
-                traverse(document.body);
-                observer.observe(document.body, {
-                    childList: true,
-                    subtree: true,
-                    characterData: true
-                });
-                ensureCleanupInterval();
+                if (ensureBodyAvailable()) {
+                    attachToRoot(document.body);
+                    traverse(document.body);
+                    ensureCleanupInterval();
+                }
             } else {
                 console.log('Bolder: Disabled on this site by settings.');
             }

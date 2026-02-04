@@ -5,7 +5,7 @@ Keyword Highlighter is a browser extension (Manifest V3) that applies highlight 
 
 ## High-Level Flow
 1. Content script loads settings from `browser.storage.local`.
-2. Content script scans text nodes, tokenizes them, and applies highlight ranges via the Custom Highlight API.
+2. Content script waits for `document.body`, then scans text nodes, tokenizes them, and applies highlight ranges via the Custom Highlight API.
 3. Background script updates toolbar icon state and sends an explicit message to the content script when per-site enablement is toggled.
 4. Options page updates settings, which trigger content script listeners to re-scan and re-render.
 
@@ -22,8 +22,9 @@ Keyword Highlighter is a browser extension (Manifest V3) that applies highlight 
 2. CSS Custom Highlight API registers `Highlight` objects for `bolder-darken` and `bolder-lighten`.
 3. Custom highlight rules are parsed and associated with per-rule `Highlight` objects.
 4. A TreeWalker collects text nodes and `processTextNode` handles each node.
-5. `processTextNode` skips excluded/hidden nodes, checks min word count, applies custom rules, tokenizes text, and applies sentence-start/block-start suppression for auto-detect.
-6. Ranges are tracked in `activeRanges` for cleanup; a MutationObserver re-processes changed nodes.
+5. Startup waits for `document.body`; a secondary observer reattaches traversal if the body is replaced.
+6. `processTextNode` skips excluded/hidden nodes, checks min word count, applies custom rules, tokenizes text, and applies sentence-start/block-start suppression for auto-detect.
+7. Ranges are tracked in `activeRanges` for cleanup; a MutationObserver re-processes changed nodes.
 
 ## Settings and Storage
 - Settings stored in `browser.storage.local` include enablement, auto-detect configuration, colors, custom rules, registry config, excluded tags, and optional short-metadata suppression.
