@@ -1,5 +1,10 @@
 # Devlog
 
+## 2026-02-04
+Summary: Added extra options-page documentation for autosave behavior, domain matching, min-word threshold, and custom highlight syntax.
+Findings: None.
+Hypotheses: None.
+
 ## 2026-02-03
 Summary: Scanned the extension codebase and documented architecture.
 
@@ -63,3 +68,33 @@ Next steps
   - `keyword_highlighter/options.html`
   - `keyword_highlighter/options.js`
   - `ARCHITECTURE.md`
+
+## 2026-02-03 (continued 6)
+- Work
+  - Allowed all-caps tokens to be highlighted even at sentence/block start to avoid missing acronyms like “AI” when sentence-start state is imperfect.
+- Files
+  - `keyword_highlighter/content.js`
+
+## 2026-02-03 (continued 7)
+- Work
+  - Added token normalization to trim leading/trailing non-letter characters before regex checks, and adjusted range offsets accordingly.
+- Rationale
+  - Some punctuation or Unicode characters can cause word tokens to be skipped; normalization makes detection more robust.
+- Files
+  - `keyword_highlighter/content.js`
+
+## 2026-02-03 (continued 8)
+- Work
+  - Added a fallback to allow processing when the text node itself is long enough even if the block word count is low/stale.
+- Rationale
+  - Prevents missed highlights when cached block word counts are wrong or when block selection is unexpectedly narrow.
+- Files
+  - `keyword_highlighter/content.js`
+
+## 2026-02-03 (continued 9)
+- Work
+  - Normalized tokens by stripping invisible characters (NBSP/zero-width) before regex checks while preserving original range length.
+- Rationale
+  - Some sites inject invisible characters into words, which breaks regex matching even though the text looks normal.
+- Files
+  - `keyword_highlighter/content.js`

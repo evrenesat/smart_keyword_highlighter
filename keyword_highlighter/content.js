@@ -550,6 +550,23 @@
                 return true;
             }
 
+            function normalizeToken(token) {
+                if (!token) return null;
+                const leadingMatch = token.match(/^[^A-Za-z]+/);
+                const trailingMatch = token.match(/[^A-Za-z]+$/);
+                const leadingTrim = leadingMatch ? leadingMatch[0].length : 0;
+                const trailingTrim = trailingMatch ? trailingMatch[0].length : 0;
+                const trimmed = token.slice(leadingTrim, token.length - trailingTrim);
+                if (!trimmed) return null;
+                const normalizedValue = trimmed.replace(/[\u00A0\u200B\u200C\u200D\uFEFF]/g, '');
+                if (!normalizedValue) return null;
+                return {
+                    value: trimmed,
+                    normalizedValue,
+                    offsetDelta: leadingTrim
+                };
+            }
+
             function updateSentenceStateFromText(text) {
                 if (!text || !text.trim()) return;
 
@@ -560,7 +577,8 @@
                         return;
                     }
 
-                    if (!/^[a-zA-Z\-]+$/.test(token)) {
+                    const normalized = normalizeToken(token);
+                    if (!normalized || !/^[A-Za-z\-]+$/.test(normalized.normalizedValue)) {
                         return;
                     }
 
@@ -602,7 +620,10 @@
                     minWords = 3;
                 }
 
-                if (getWordCount(blockParent) < minWords) {
+                const blockWordCount = getWordCount(blockParent);
+                const nodeWordCount = text.trim().split(/\s+/).filter(Boolean).length;
+
+                if (blockWordCount < minWords && nodeWordCount < minWords) {
                     return;
                 }
 
@@ -674,12 +695,15 @@
                         return;
                     }
 
-                    if (!/^[a-zA-Z\-]+$/.test(token)) {
+                    const normalized = normalizeToken(token);
+                    if (!normalized || !/^[A-Za-z\-]+$/.test(normalized.normalizedValue)) {
                         currentOffset += token.length;
                         return;
                     }
 
-
+                    const tokenValue = normalized.normalizedValue;
+                    const tokenOffset = currentOffset + normalized.offsetDelta;
+                    const tokenLength = normalized.value.length;
 
                     const isBlockStart = isBlockStartNode;
                     if (isBlockStart) {
@@ -692,50 +716,56 @@
                     }
 
                     let shouldBold = false;
+                    const isAllCaps = RE_UPPERCASE.test(tokenValue);
+                    const isAutoDetectCandidate = isAllCaps || RE_CAPITALIZED.test(tokenValue) || RE_MIXED_CASE.test(tokenValue) || RE_HYPHENATED.test(tokenValue);
+
                     if (!isBlockStart && !isSentenceStart) {
-                        if (RE_UPPERCASE.test(token) || RE_CAPITALIZED.test(token) || RE_MIXED_CASE.test(token) || RE_HYPHENATED.test(token)) {
+                        if (isAutoDetectCandidate) {
                             shouldBold = true;
                         }
+                    } else if (isAllCaps) {
+                        // Allow all-caps acronyms even at sentence/block start.
+                        shouldBold = true;
                     }
 
                     if (shouldBold) {
                         const range = new Range();
-                        range.setStart(textNode, currentOffset);
-                        range.setEnd(textNode, currentOffset + token.length);
+                        range.setStart(textNode, tokenOffset);
+                        range.setEnd(textNode, tokenOffset + tokenLength);
                         targetRegistry.add(range);
                         activeRanges.set(range, targetRegistry);
 
                         // If it's a valid keyword (long enough etc), add to registry for future start-of-sentence highlighting
                         // We use the same regex/logic as the check "shouldBold" used.
                         // Assuming shouldBold implies it met the criteria.
-                        addToRegistry(token);
+                        addToRegistry(tokenValue);
 
                         // Retroactive: Check if we skipped this word earlier
                         // processRetroactive expects lowercase key
-                        processRetroactive(token.toLowerCase());
+                        processRetroactive(tokenValue.toLowerCase());
                     } else if (isSentenceStart || isBlockStart) {
                         // Check if it's in registry
-                        const lowerToken = token.toLowerCase();
-                        if (token.length >= REGISTRY_MIN_LEN && registry.has(lowerToken) && isRegistryStartCandidate(token)) {
+                        const lowerToken = tokenValue.toLowerCase();
+                        if (tokenValue.length >= REGISTRY_MIN_LEN && registry.has(lowerToken) && isRegistryStartCandidate(tokenValue)) {
                             const range = new Range();
-                            range.setStart(textNode, currentOffset);
-                            range.setEnd(textNode, currentOffset + token.length);
+                            range.setStart(textNode, tokenOffset);
+                            range.setEnd(textNode, tokenOffset + tokenLength);
                             targetRegistry.add(range);
                             activeRanges.set(range, targetRegistry);
                         } else {
                             // Candidate for retroactive highlighting
                             // Only if it *would* be highlighted if it wasn't at start
                             // Re-check criteria (uppercase, capitalized etc)
-                            if (RE_UPPERCASE.test(token) || RE_CAPITALIZED.test(token) || RE_MIXED_CASE.test(token) || RE_HYPHENATED.test(token)) {
-                                if (token.length >= REGISTRY_MIN_LEN) {
-                                    const lowerToken = token.toLowerCase();
+                            if (RE_UPPERCASE.test(tokenValue) || RE_CAPITALIZED.test(tokenValue) || RE_MIXED_CASE.test(tokenValue) || RE_HYPHENATED.test(tokenValue)) {
+                                if (tokenValue.length >= REGISTRY_MIN_LEN) {
+                                    const lowerToken = tokenValue.toLowerCase();
                                     if (!skippedCandidates.has(lowerToken)) {
                                         skippedCandidates.set(lowerToken, []);
                                     }
                                     skippedCandidates.get(lowerToken).push({
                                         node: textNode,
-                                        offset: currentOffset,
-                                        length: token.length
+                                        offset: tokenOffset,
+                                        length: tokenLength
                                     });
                                 }
                             }

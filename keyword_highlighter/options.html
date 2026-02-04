@@ -8,8 +8,9 @@
 </head>
 
 <body>
-    <div class="container">
+        <div class="container">
         <h1>Keyword Highlighter</h1>
+        <p class="help-text">Changes save automatically as you edit settings.</p>
 
         <div class="section">
             <label class="toggle">
@@ -24,6 +25,8 @@
         <div class="section">
             <label for="siteList">Site List (one domain per line):</label>
             <textarea id="siteList" rows="10" placeholder="example.com&#10;sub.example.com"></textarea>
+            <p class="help-text">Use hostnames only (no <code>https://</code>). Matching is substring-based, so
+                <code>example.com</code> also matches <code>sub.example.com</code>.</p>
         </div>
 
         <div class="section">
@@ -31,6 +34,8 @@
             <div class="setting-row">
                 <label for="minWordsInBlock">Minimum Words in Block:</label>
                 <input type="number" id="minWordsInBlock" min="1" value="10">
+                <p class="help-text">Auto-detect highlighting runs only when a block has at least this many words.
+                    Lists and table cells use a smaller threshold.</p>
             </div>
             <div class="setting-row">
                 <label>Darken Background Color:</label>
@@ -57,7 +62,8 @@
                 <p class="help-text">Format: one color per line. Comma separated keywords.<br>
                     Example:<br>
                     yellow: python,CI/CD<br>
-                    #ff0000: error,fail
+                    #ff0000: error,fail<br>
+                    Colors accept any valid CSS color. Keyword matching is case-insensitive.
                 </p>
                 <textarea id="customHighlights" rows="6"
                     placeholder="yellow: python,CI/CD&#10;#cccccc: AI,ML"></textarea>
@@ -75,7 +81,8 @@
                 <p class="help-text">Effect: Persistently tracks keywords per domain to highlight them even at sentence
                     starts.<br>
                     Format: `size: domain1, domain2` or `size: *.*` for all sites.<br>
-                    Default: `1000: *.*`
+                    Default: `1000: *.*`<br>
+                    Domain matching uses substring checks; use full domains to avoid accidental matches.
                 </p>
                 <textarea id="registryConfig" rows="6" placeholder="1000: *.*&#10;500: example.com"></textarea>
                 <div style="text-align: right; margin-top: 5px;">
