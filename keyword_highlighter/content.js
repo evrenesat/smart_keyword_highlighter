@@ -39,7 +39,9 @@
         disableAutoDetect: false,
         registryConfig: '1000: *.*',
         excludedTagsConfig: '*.*: SCRIPT, STYLE, NOSCRIPT, TEXTAREA, INPUT, SELECT, OPTION, CODE, PRE, IFRAME, SVG, CANVAS, KBD, VAR, A',
-        skipShortMetadataLines: false
+        skipShortMetadataLines: false,
+        debugLogging: false,
+        debugWords: ''
     };
 
     let isEnabled = false;
@@ -431,6 +433,96 @@
             parseRegistryConfig();
             loadRegistry();
 
+            let debugWords = [];
+            let debugWordsRegex = null;
+            const DEBUG_SKIP_LOG_THROTTLE_MS = 3000;
+            const debugSkipLogTimes = new WeakMap();
+
+            function escapeRegExp(value) {
+                return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+
+            function parseDebugWords(value) {
+                if (!value) return [];
+                return value
+                    .split(/[,\n]/)
+                    .map(word => word.trim().toLowerCase())
+                    .filter(Boolean);
+            }
+
+            function updateDebugWords(value) {
+                debugWords = parseDebugWords(value);
+                if (!debugWords.length) {
+                    debugWordsRegex = null;
+                    return;
+                }
+                try {
+                    debugWordsRegex = new RegExp(debugWords.map(escapeRegExp).join('|'), 'i');
+                } catch (error) {
+                    console.warn('Bolder: Failed to compile debug-word regex.', error);
+                    debugWordsRegex = null;
+                }
+            }
+
+            function shouldLogForText(matchText, force) {
+                if (!currentSettings.debugLogging) return false;
+                if (force) return true;
+                if (!debugWords.length) return true;
+                if (!matchText) return false;
+                if (debugWordsRegex) {
+                    return debugWordsRegex.test(matchText);
+                }
+                const haystack = matchText.toLowerCase();
+                for (const word of debugWords) {
+                    if (haystack.includes(word)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            function shouldLogSkippedNode(textNode) {
+                if (!currentSettings.debugLogging) return false;
+                if (!shouldLogForText(textNode.nodeValue, false)) return false;
+                const now = Date.now();
+                const last = debugSkipLogTimes.get(textNode) || 0;
+                if (now - last < DEBUG_SKIP_LOG_THROTTLE_MS) return false;
+                debugSkipLogTimes.set(textNode, now);
+                return true;
+            }
+
+            function debugLog(label, options) {
+                const matchText = options && options.matchText ? options.matchText : '';
+                const force = Boolean(options && options.force);
+                if (!shouldLogForText(matchText, force)) return;
+
+                if (options && typeof options.data === 'function') {
+                    console.log(label, options.data());
+                } else {
+                    console.log(label);
+                }
+            }
+
+            function summarizeText(text, maxLen = 120) {
+                if (!text) return '';
+                const normalized = text.replace(/\s+/g, ' ').trim();
+                if (normalized.length <= maxLen) return normalized;
+                return `${normalized.slice(0, maxLen)}…`;
+            }
+
+            function describeElement(el) {
+                if (!el) return 'null';
+                let desc = el.tagName || 'UNKNOWN';
+                if (el.id) desc += `#${el.id}`;
+                if (el.classList && el.classList.length) {
+                    desc += `.${Array.from(el.classList).slice(0, 3).join('.')}`;
+                }
+                return desc;
+            }
+
+            updateDebugWords(currentSettings.debugWords);
+            debugLog('Bolder: Debug logging enabled.', { force: true });
+
 
             // --- Helper Functions ---
 
@@ -573,6 +665,13 @@
                 const tokens = text.split(/([.!?…:;]|\s+|[^a-zA-Z\-.!?…:;\s]+)/).filter(t => t);
                 tokens.forEach((token, i) => {
                     if (isSentenceTerminator(token, tokens, i)) {
+                        debugLog('Bolder: Excluded text contained sentence terminator', {
+                            matchText: text,
+                            data: () => ({
+                                token,
+                                text: summarizeText(text)
+                            })
+                        });
                         atSentenceStart = true;
                         return;
                     }
@@ -583,29 +682,59 @@
                     }
 
                     if (atSentenceStart) {
+                        debugLog('Bolder: Excluded text consumed sentence start', {
+                            matchText: text,
+                            data: () => ({
+                                token: normalized.normalizedValue,
+                                text: summarizeText(text)
+                            })
+                        });
                         atSentenceStart = false;
                     }
                 });
+            }
+
+            function handleSkippedTextNode(textNode, skipReason) {
+                if (!skipReason) return false;
+
+                if (skipReason === 'excluded-tag') {
+                    // Preserve sentence boundaries across excluded tags (e.g., links),
+                    // so sentence-start suppression remains accurate.
+                    updateSentenceStateFromText(textNode.nodeValue);
+                }
+
+                if (shouldLogSkippedNode(textNode)) {
+                    debugLog('Bolder: Skipping text node', {
+                        matchText: textNode.nodeValue,
+                        data: () => ({
+                            reason: skipReason,
+                            text: summarizeText(textNode.nodeValue)
+                        })
+                    });
+                }
+
+                return true;
             }
 
             function processTextNode(textNode) {
                 if (!isEnabled) return; // Stop if disabled
 
                 const skipReason = getSkipReason(textNode);
-                if (skipReason) {
-                    if (skipReason === 'excluded-tag') {
-                        // Preserve sentence boundaries across excluded tags (e.g., links),
-                        // so sentence-start suppression remains accurate.
-                        updateSentenceStateFromText(textNode.nodeValue);
-                    }
-                    return;
-                }
+                if (handleSkippedTextNode(textNode, skipReason)) return;
 
                 const text = textNode.nodeValue;
                 if (!text.trim()) return;
 
                 const blockParent = getBlockParent(textNode);
                 if (blockParent !== lastBlockParent) {
+                    debugLog('Bolder: Block parent changed', {
+                        matchText: text,
+                        data: () => ({
+                            from: describeElement(lastBlockParent),
+                            to: describeElement(blockParent),
+                            text: summarizeText(blockParent.innerText)
+                        })
+                    });
                     atSentenceStart = true;
                     lastBlockParent = blockParent;
                 }
@@ -674,6 +803,15 @@
                 // console.log('Bolder: Tokens:', tokens.slice(0, 5));
 
                 let isBlockStartNode = isFirstWordInBlock(textNode, blockParent);
+                debugLog('Bolder: Block-start check', {
+                    matchText: text,
+                    data: () => ({
+                        block: describeElement(blockParent),
+                        isBlockStartNode,
+                        atSentenceStart,
+                        nodeText: summarizeText(text)
+                    })
+                });
                 let currentOffset = 0;
 
                 // Debug logging for first few tokens
@@ -689,6 +827,14 @@
 
                 tokens.forEach((token, i) => {
                     if (isSentenceTerminator(token, tokens, i)) {
+                        debugLog('Bolder: Sentence terminator found', {
+                            matchText: token,
+                            data: () => ({
+                                token,
+                                block: describeElement(blockParent),
+                                nodeText: summarizeText(text)
+                            })
+                        });
                         atSentenceStart = true;
                         isBlockStartNode = false;
                         currentOffset += token.length;
@@ -726,6 +872,21 @@
                     } else if (isAllCaps) {
                         // Allow all-caps acronyms even at sentence/block start.
                         shouldBold = true;
+                    }
+
+                    if (isAutoDetectCandidate || isAllCaps) {
+                        debugLog('Bolder: Token decision', {
+                            matchText: tokenValue,
+                            data: () => ({
+                                token: tokenValue,
+                                shouldBold,
+                                isBlockStart,
+                                isSentenceStart,
+                                isAllCaps,
+                                block: describeElement(blockParent),
+                                nodeText: summarizeText(text)
+                            })
+                        });
                     }
 
                     if (shouldBold) {
@@ -784,26 +945,204 @@
             }
 
             // --- Traversal ---
-            function traverse(root) {
+            const PROCESS_BUDGET_MS = 8;
+            const MAX_NODES_PER_CHUNK = 300;
+            const MUTATION_WINDOW_MS = 500;
+            const MUTATION_THRESHOLD = 120;
+            const MUTATION_PAUSE_MS = 700;
+            const pendingTasks = [];
+            const pendingTextNodeSet = new Set();
+            let flushScheduled = false;
+            let flushHandle = null;
+            let flushHandleType = null;
+            let pendingCleanup = false;
+            let pauseUntil = 0;
+            let resumeTimer = null;
+            let needsRescan = false;
+            let mutationWindowStart = 0;
+            let mutationCount = 0;
+
+            function clearQueues() {
+                pendingTasks.length = 0;
+                pendingTextNodeSet.clear();
+                pendingCleanup = false;
+                if (flushScheduled) {
+                    if (flushHandleType === 'idle' && typeof window.cancelIdleCallback === 'function') {
+                        window.cancelIdleCallback(flushHandle);
+                    } else if (flushHandleType === 'timeout') {
+                        clearTimeout(flushHandle);
+                    }
+                    flushScheduled = false;
+                    flushHandle = null;
+                    flushHandleType = null;
+                }
+            }
+
+            function isPaused() {
+                return Date.now() < pauseUntil;
+            }
+
+            function scheduleResume() {
+                if (resumeTimer) return;
+                const delay = Math.max(0, pauseUntil - Date.now());
+                resumeTimer = setTimeout(() => {
+                    resumeTimer = null;
+                    if (!isEnabled) return;
+                    if (isPaused()) {
+                        scheduleResume();
+                        return;
+                    }
+                    if (needsRescan && document.body) {
+                        needsRescan = false;
+                        traverse(document.body);
+                    }
+                }, delay);
+            }
+
+            function enterPause() {
+                if (isPaused()) return;
+                pauseUntil = Date.now() + MUTATION_PAUSE_MS;
+                needsRescan = true;
+                clearQueues();
+                scheduleResume();
+                debugLog('Bolder: Mutation storm detected; pausing processing.', { force: true });
+            }
+
+            function registerMutations(count) {
+                const now = Date.now();
+                if (now - mutationWindowStart > MUTATION_WINDOW_MS) {
+                    mutationWindowStart = now;
+                    mutationCount = 0;
+                }
+                mutationCount += count;
+                if (mutationCount >= MUTATION_THRESHOLD) {
+                    mutationCount = 0;
+                    mutationWindowStart = now;
+                    enterPause();
+                }
+            }
+
+            function getTimeRemaining(deadline) {
+                if (deadline && typeof deadline.timeRemaining === 'function') {
+                    return deadline.timeRemaining();
+                }
+                return PROCESS_BUDGET_MS;
+            }
+
+            function scheduleFlush() {
+                if (flushScheduled || !isEnabled || isPaused()) return;
+                flushScheduled = true;
+                if (typeof window.requestIdleCallback === 'function') {
+                    flushHandleType = 'idle';
+                    flushHandle = window.requestIdleCallback(processQueue, { timeout: 200 });
+                } else {
+                    flushHandleType = 'timeout';
+                    flushHandle = setTimeout(() => processQueue(), 0);
+                }
+            }
+
+            function enqueueTextNode(node) {
+                if (!node || node.nodeType !== Node.TEXT_NODE) return;
+                if (pendingTextNodeSet.has(node)) return;
+                if (isPaused()) {
+                    needsRescan = true;
+                    scheduleResume();
+                    return;
+                }
+                pendingTextNodeSet.add(node);
+                pendingTasks.push({ type: 'text', node });
+                scheduleFlush();
+            }
+
+            function enqueueRoot(root) {
                 if (!isEnabled || !root) return;
+                if (isPaused()) {
+                    needsRescan = true;
+                    scheduleResume();
+                    return;
+                }
                 const walker = document.createTreeWalker(
                     root,
                     NodeFilter.SHOW_TEXT,
                     null,
                     false
                 );
+                pendingTasks.push({ type: 'walker', walker });
+                scheduleFlush();
+            }
 
-                const nodes = [];
-                let node;
-                while ((node = walker.nextNode())) {
-                    nodes.push(node);
+            function processQueue(deadline) {
+                flushScheduled = false;
+                flushHandle = null;
+                flushHandleType = null;
+
+                if (!isEnabled) {
+                    clearQueues();
+                    return;
+                }
+                if (isPaused()) {
+                    scheduleResume();
+                    return;
                 }
 
-                nodes.forEach(processTextNode);
+                let processed = 0;
+                while (processed < MAX_NODES_PER_CHUNK && getTimeRemaining(deadline) > 1) {
+                    const task = pendingTasks[0];
+                    if (!task) break;
+
+                    if (task.type === 'text') {
+                        pendingTasks.shift();
+                        pendingTextNodeSet.delete(task.node);
+                        if (task.node && task.node.isConnected) {
+                            processTextNode(task.node);
+                        }
+                        processed += 1;
+                        continue;
+                    }
+
+                    if (task.type === 'walker') {
+                        const nextNode = task.walker.nextNode();
+                        if (!nextNode) {
+                            pendingTasks.shift();
+                            continue;
+                        }
+                        if (nextNode.isConnected) {
+                            processTextNode(nextNode);
+                        }
+                        processed += 1;
+                        continue;
+                    }
+
+                    pendingTasks.shift();
+                }
+
+                if (pendingCleanup && getTimeRemaining(deadline) > 1) {
+                    pendingCleanup = false;
+                    for (const [range, registry] of activeRanges) {
+                        if (!range.commonAncestorContainer.isConnected || range.commonAncestorContainer.nodeType !== Node.TEXT_NODE) {
+                            registry.delete(range);
+                            activeRanges.delete(range);
+                        }
+                    }
+                }
+
+                if (pendingTasks.length > 0 || pendingCleanup) {
+                    scheduleFlush();
+                }
+            }
+
+            function requestCleanup() {
+                pendingCleanup = true;
+                scheduleFlush();
+            }
+
+            function traverse(root) {
+                enqueueRoot(root);
             }
 
             // --- Cleanup ---
             function cleanupHighlights() {
+                clearQueues();
                 if (highlightDarken && typeof highlightDarken.clear === 'function') {
                     highlightDarken.clear();
                 }
@@ -883,6 +1222,12 @@
                 if (newEnabled === isEnabled) return false;
                 isEnabled = newEnabled;
                 resetTraversalState();
+                pauseUntil = 0;
+                needsRescan = false;
+                if (resumeTimer) {
+                    clearTimeout(resumeTimer);
+                    resumeTimer = null;
+                }
                 if (isEnabled) {
                     console.log('Bolder: Enabled by settings change.');
                     if (ensureBodyAvailable()) {
@@ -901,6 +1246,8 @@
             // --- MutationObserver ---
             const observer = new MutationObserver((mutations) => {
                 if (!isEnabled) return;
+                registerMutations(mutations.length);
+                if (isPaused()) return;
                 let shouldCleanup = false;
                 mutations.forEach(mutation => {
                     if (mutation.type === 'childList') {
@@ -911,24 +1258,22 @@
                             if (node.nodeType === Node.ELEMENT_NODE) {
                                 traverse(node);
                             } else if (node.nodeType === Node.TEXT_NODE) {
-                                processTextNode(node);
+                                const skipReason = getSkipReason(node);
+                                if (!handleSkippedTextNode(node, skipReason)) {
+                                    enqueueTextNode(node);
+                                }
                             }
                         });
                     } else if (mutation.type === 'characterData') {
-                        processTextNode(mutation.target);
+                        const skipReason = getSkipReason(mutation.target);
+                        if (!handleSkippedTextNode(mutation.target, skipReason)) {
+                            enqueueTextNode(mutation.target);
+                        }
                     }
                 });
 
                 if (shouldCleanup) {
-                    // Only cleanup removed nodes if we are enabled, otherwise we might have already cleaned up everything
-                    // But here we want to be careful. The original logic cleaned up disconnected nodes.
-                    // We can just call the original cleanup logic which checks connectivity.
-                    for (const [range, registry] of activeRanges) {
-                        if (!range.commonAncestorContainer.isConnected || range.commonAncestorContainer.nodeType !== Node.TEXT_NODE) {
-                            registry.delete(range);
-                            activeRanges.delete(range);
-                        }
-                    }
+                    requestCleanup();
                 }
             });
 
@@ -1017,6 +1362,16 @@
                             currentSettings.skipShortMetadataLines = changes.skipShortMetadataLines.newValue;
                             needsCleanup = true;
                             needsTraverse = true;
+                        }
+
+                        if (changes.debugLogging) {
+                            currentSettings.debugLogging = changes.debugLogging.newValue;
+                            debugLog('Bolder: Debug logging enabled.');
+                        }
+
+                        if (changes.debugWords) {
+                            currentSettings.debugWords = changes.debugWords.newValue;
+                            updateDebugWords(currentSettings.debugWords);
                         }
 
                         // 2. Handle Enable/Disable State

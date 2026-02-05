@@ -100,3 +100,44 @@ Next steps
   - Some sites inject invisible characters into words, which breaks regex matching even though the text looks normal.
 - Files
   - `keyword_highlighter/content.js`
+
+## 2026-02-05
+Summary: Investigated why LinkedIn’s “Comments…” sentence-start word can be highlighted; reviewed sentence/block-start suppression and block detection logic.
+Findings: The auto-detect path will highlight capitalized words when the sentence/block-start flags are false.
+Hypotheses: LinkedIn likely inserts earlier visible or visually-hidden text nodes within the same block, or block-parent detection groups multiple lines under a shared ancestor, leaving `atSentenceStart`/`isFirstWordInBlock` false for the “Comments” token.
+
+## 2026-02-05 (continued)
+Summary: Added configurable debug logging to trace block and sentence-start decisions in the content script.
+Files: `keyword_highlighter/content.js`, `keyword_highlighter/options.html`, `keyword_highlighter/options.js`, `ARCHITECTURE.md`
+
+## 2026-02-05 (continued 2)
+Summary: Added a debug-word filter and lazy debug logging to minimize overhead when disabled or filtered.
+Files: `keyword_highlighter/content.js`, `keyword_highlighter/options.html`, `keyword_highlighter/options.js`, `ARCHITECTURE.md`
+
+## 2026-02-05 (continued 3)
+Summary: Time-sliced traversal and deferred mutation processing to reduce main-thread spikes on large/dynamic pages.
+Files: `keyword_highlighter/content.js`, `ARCHITECTURE.md`
+
+## 2026-02-05 (continued 4)
+Summary: Avoided queueing mutation updates for skipped nodes (aria-hidden/excluded), while preserving sentence boundary updates for excluded tags.
+Files: `keyword_highlighter/content.js`, `ARCHITECTURE.md`
+
+## 2026-02-05 (continued 5)
+Summary: Added a mutation-storm pause to throttle processing during rapid DOM updates, then rescan after a short cooldown.
+Files: `keyword_highlighter/content.js`, `ARCHITECTURE.md`
+
+## 2026-02-05 (continued 6)
+Summary: Throttled debug logging for skipped nodes to avoid spam from frequently-updating hidden timers.
+Files: `keyword_highlighter/content.js`
+
+## 2026-02-05 (continued 7)
+Summary: Reduced false-positive mutation-storm pauses by requiring sustained bursts before pausing processing, improving responsiveness on SPA content swaps (e.g., LinkedIn job panel). Rebuilt dist packages.
+Files: `keyword_highlighter/content.js`, `ARCHITECTURE.md`
+
+## 2026-02-05 (continued 8)
+Summary: Retuned mutation-storm thresholds and cooldown to avoid multi-second highlight delays, and made storm/debug logs bypass the debug-word filter. Rebuilt dist packages.
+Files: `keyword_highlighter/content.js`, `ARCHITECTURE.md`
+
+## 2026-02-05 (continued 9)
+Summary: Optimized debug-word filtering to use a compiled regex and avoid repeated lowercasing of large text nodes, reducing debug-mode overhead. Rebuilt dist packages.
+Files: `keyword_highlighter/content.js`

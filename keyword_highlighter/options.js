@@ -9,7 +9,9 @@ const defaultSettings = {
     customHighlights: '',
     disableAutoDetect: false,
     registryConfig: '1000: *.*',
-    skipShortMetadataLines: false
+    skipShortMetadataLines: false,
+    debugLogging: false,
+    debugWords: ''
 };
 
 function rgbaToHexOpacity(rgba) {
@@ -67,6 +69,8 @@ function saveOptions() {
     const registryConfig = document.getElementById('registryConfig').value;
     const disableAutoDetect = document.getElementById('disableAutoDetect').checked;
     const skipShortMetadataLines = document.getElementById('skipShortMetadataLines').checked;
+    const debugLogging = document.getElementById('debugLogging').checked;
+    const debugWords = document.getElementById('debugWords').value;
 
     browser.storage.local.set({
         defaultEnabled,
@@ -78,7 +82,9 @@ function saveOptions() {
         disableAutoDetect,
         registryConfig,
         excludedTagsConfig: excludedTagsInput,
-        skipShortMetadataLines
+        skipShortMetadataLines,
+        debugLogging,
+        debugWords
     }).then(() => {
         const status = document.getElementById('status');
         status.textContent = 'Options saved.';
@@ -98,6 +104,8 @@ function restoreOptions() {
         document.getElementById('registryConfig').value = result.registryConfig || '1000: *.*';
         document.getElementById('excludedTagsConfig').value = result.excludedTagsConfig || DEFAULT_EXCLUDED_TAGS_CONFIG;
         document.getElementById('skipShortMetadataLines').checked = result.skipShortMetadataLines || false;
+        document.getElementById('debugLogging').checked = result.debugLogging || false;
+        document.getElementById('debugWords').value = result.debugWords || '';
 
         const darken = rgbaToHexOpacity(result.bolderDarkenBg);
         document.getElementById('bolderDarkenColor').value = darken.hex;
@@ -120,6 +128,8 @@ document.getElementById('disableAutoDetect').addEventListener('change', saveOpti
 document.getElementById('registryConfig').addEventListener('input', saveOptions);
 document.getElementById('excludedTagsConfig').addEventListener('input', saveOptions);
 document.getElementById('skipShortMetadataLines').addEventListener('change', saveOptions);
+document.getElementById('debugLogging').addEventListener('change', saveOptions);
+document.getElementById('debugWords').addEventListener('input', saveOptions);
 
 document.getElementById('resetExcludedTags').addEventListener('click', () => {
     document.getElementById('excludedTagsConfig').value = DEFAULT_EXCLUDED_TAGS_CONFIG;

@@ -114,6 +114,20 @@
                 <p class="help-text" style="margin-top: 0;">If enabled, automatic highlights are skipped for short,
                     comma/parenthesis-heavy lines (e.g., location metadata). Custom highlights still apply.</p>
             </div>
+            <div class="setting-row">
+                <label>
+                    <input type="checkbox" id="debugLogging">
+                    Enable Debug Logging
+                </label>
+                <p class="help-text" style="margin-top: 0;">If enabled, the content script logs detailed sentence and
+                    block-start decisions to help diagnose unexpected highlights.</p>
+            </div>
+            <div class="setting-row">
+                <label for="debugWords">Debug Words Filter (optional)</label>
+                <input type="text" id="debugWords" placeholder="Comments, React, Repost">
+                <p class="help-text" style="margin-top: 0;">When set, debug logging only fires for matching words or text
+                    nodes (case-insensitive). Leave blank to log everything.</p>
+            </div>
         </div>
 
         <div id="status"></div>
