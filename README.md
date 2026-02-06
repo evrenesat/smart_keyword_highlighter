@@ -1,6 +1,6 @@
-# Keyword Highlighter
+# Smart Keyword Highlighter
 
-**Keyword Highlighter** is a browser extension that improves reading focus by automatically highlighting uppercase and capitalized words on web pages.
+**Smart Keyword Highlighter** is a browser extension that improves reading focus by automatically highlighting uppercase and capitalized words on web pages.
 
 ## Screenshots
 

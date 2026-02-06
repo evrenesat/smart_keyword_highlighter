@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Keyword Highlighter",
-  "version": "1.3",
-  "description": "Highlights uppercase and capitalized words.",
+  "name": "Smart Keyword Highlighter",
+  "version": "1.4",
+  "description": "Smart keyword highlighting to improve focus. Uses CSS Custom Highlight API, adaptive contrast, and persistent registry.",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
@@ -39,7 +39,7 @@
       "96": "icons/icon-96.png",
       "128": "icons/icon-128.png"
     },
-    "default_title": "Toggle Keyword Highlighter"
+    "default_title": "Toggle Smart Keyword Highlighter"
   },
   "options_ui": {
     "page": "options.html",

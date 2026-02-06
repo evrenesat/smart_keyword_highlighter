@@ -1,4 +1,4 @@
-Privacy Policy — Keyword Highlighter
+Privacy Policy — Smart Keyword Highlighter
 
 Data Collection:
 This extension does not collect or transmit personal data or browsing data to any server. All text processing happens locally on your device to apply highlights.

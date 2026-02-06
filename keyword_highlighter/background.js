@@ -51,7 +51,7 @@ function updateIcon(tabId, isEnabled) {
     const path = isEnabled ? "icons/icon.png" : "icons/icon_disabled.png";
     browser.action.setIcon({ tabId, path });
     // Optional: Update title
-    const title = isEnabled ? "Keyword Highlighter: ON" : "Keyword Highlighter: OFF";
+    const title = isEnabled ? "Smart Keyword Highlighter: ON" : "Smart Keyword Highlighter: OFF";
     browser.action.setTitle({ tabId, title });
 }
 

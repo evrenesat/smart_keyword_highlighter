@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [1.0.0] - 2025-12-01
 
 ### Added
-- Initial release of Keyword Highlighter.
+- Initial release of Smart Keyword Highlighter.
 - Highlights uppercase and capitalized words on web pages.
 - **Configurable Preferences**:
     - **Minimum Words in Block**: Set the minimum number of words required in a block for highlighting to occur (default: 10).

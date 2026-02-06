@@ -44,7 +44,7 @@ async function createPackage(browser, manifestName, files) {
     await fs.copy(path.join(ROOT_DIR, manifestName), path.join(browserDir, 'manifest.json'));
 
     // Zip it
-    const output = fs.createWriteStream(path.join(DIST_DIR, `keyword-highlighter-${browser}.zip`));
+    const output = fs.createWriteStream(path.join(DIST_DIR, `smart-keyword-highlighter-${browser}.zip`));
     const archive = archiver('zip', { zlib: { level: 9 } });
 
     archive.pipe(output);

@@ -1,7 +1,7 @@
-# Project Architecture: Keyword Highlighter
+# Project Architecture: Smart Keyword Highlighter
 
 ## Overview
-Keyword Highlighter is a browser extension (Manifest V3) that applies highlight overlays to words in web pages. It uses the CSS Custom Highlight API to avoid DOM mutation while tracking ranges and updates highlights on live DOM changes.
+Smart Keyword Highlighter is a browser extension (Manifest V3) that applies highlight overlays to words in web pages. It uses the CSS Custom Highlight API to avoid DOM mutation while tracking ranges and updates highlights on live DOM changes.
 
 ## High-Level Flow
 1. Content script loads settings from `browser.storage.local`.

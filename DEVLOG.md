@@ -1,5 +1,19 @@
 # Devlog
 
+## 2026-02-06
+Summary: Renamed the extension from "Keyword Highlighter" to "Smart Keyword Highlighter" across the entire codebase.
+What was changed:
+- Updated extension name and action titles in all manifest files (`manifest.json`, `manifest.chrome.json`, `manifest.firefox.json`).
+- Renamed project in `package.json` to `smart-keyword-highlighter`.
+- Updated UI headers and page titles in `options.html`.
+- Updated action title logic in `background.js`.
+- Updated zip filename template in `scripts/build.js`.
+- Updated all references in `README.md`, `ARCHITECTURE.md`, `CHANGELOG.md`, and `PRIVACY_POLICY.md`.
+- Bumped version numbers to `1.4` (manifests) and `1.2.0` (`package.json`).
+- Extended the `description` field in all manifest files (shortened to 119 characters for store compliance).
+Rationale: User requested brand rename for clarity and professionalism, a version bump, and more detailed manifest descriptions.
+Verification: Ran `npm run build` and confirmed zip files in `dist/` are correctly named (`smart-keyword-highlighter-chrome.zip`, etc.) and that manifest contents (name, version, description) are correctly updated in the build artifacts.
+
 ## 2026-02-04
 Summary: Added extra options-page documentation, hardened content-script startup to wait for `document.body` and reattach if the body is replaced, and added startup/body-swap logging.
 Findings: None.
