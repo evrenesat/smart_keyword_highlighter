@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Smart Keyword Highlighter",
-  "version": "1.4",
+  "version": "1.5",
   "description": "Smart keyword highlighting to improve focus. Uses CSS Custom Highlight API, adaptive contrast, and persistent registry.",
   "icons": {
     "16": "icons/icon-16.png",
@@ -15,21 +15,14 @@
       "id": "keyword-highlighter@evren.io",
       "strict_min_version": "142.0",
       "data_collection_permissions": {
-        "required": [
-          "none"
-        ],
+        "required": ["none"],
         "optional": []
       }
     }
   },
-  "permissions": [
-    "storage",
-    "tabs"
-  ],
+  "permissions": ["storage", "tabs"],
   "background": {
-    "scripts": [
-      "background.js"
-    ]
+    "scripts": ["background.js"]
   },
   "action": {
     "default_icon": {
@@ -47,12 +40,9 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "content.js"
-      ]
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_end"
     }
   ]
 }

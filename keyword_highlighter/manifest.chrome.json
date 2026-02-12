@@ -1,41 +1,35 @@
 {
-    "manifest_version": 3,
-    "name": "Smart Keyword Highlighter",
-    "version": "1.4",
-    "description": "Smart keyword highlighting to improve focus. Uses CSS Custom Highlight API, adaptive contrast, and persistent registry.",
-    "icons": {
-        "48": "icons/icon.png",
-        "96": "icons/icon.png"
+  "manifest_version": 3,
+  "name": "Smart Keyword Highlighter",
+  "version": "1.5",
+  "description": "Smart keyword highlighting to improve focus. Uses CSS Custom Highlight API, adaptive contrast, and persistent registry.",
+  "icons": {
+    "48": "icons/icon.png",
+    "96": "icons/icon.png"
+  },
+  "permissions": ["storage", "tabs"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "96": "icons/icon-96.png",
+      "128": "icons/icon-128.png"
     },
-    "permissions": [
-        "storage",
-        "tabs"
-    ],
-    "background": {
-        "service_worker": "background.js"
-    },
-    "action": {
-        "default_icon": {
-            "16": "icons/icon-16.png",
-            "32": "icons/icon-32.png",
-            "48": "icons/icon-48.png",
-            "96": "icons/icon-96.png",
-            "128": "icons/icon-128.png"
-        },
-        "default_title": "Toggle Smart Keyword Highlighter"
-    },
-    "options_ui": {
-        "page": "options.html",
-        "open_in_tab": false
-    },
-    "content_scripts": [
-        {
-            "matches": [
-                "<all_urls>"
-            ],
-            "js": [
-                "content.js"
-            ]
-        }
-    ]
+    "default_title": "Toggle Smart Keyword Highlighter"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ]
 }

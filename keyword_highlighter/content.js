@@ -236,7 +236,22 @@
                 style.textContent = css;
             }
             updateStyles();
-            document.head.appendChild(style);
+            function injectStyleElement() {
+                if (document.head) {
+                    document.head.appendChild(style);
+                } else {
+                    const headPoll = setInterval(() => {
+                        if (document.head) {
+                            clearInterval(headPoll);
+                            document.head.appendChild(style);
+                        }
+                    }, 50);
+                }
+            }
+            injectStyleElement();
+
+            let wordCountCache = new WeakMap();
+            let lightBgCache = new WeakMap();
 
             // --- Color Helpers ---
             function parseRgb(rgbStr) {
@@ -268,10 +283,8 @@
             }
 
             function isLightBackground(element) {
-                // Cache result on element to avoid re-computation? 
-                // Maybe simple caching:
-                if (element.dataset.bolderIsLight) {
-                    return element.dataset.bolderIsLight === 'true';
+                if (lightBgCache.has(element)) {
+                    return lightBgCache.get(element);
                 }
 
                 const bgStr = getEffectiveBackgroundColor(element);
@@ -282,7 +295,7 @@
                     isLight = lum > 0.5;
                 }
 
-                element.dataset.bolderIsLight = isLight.toString();
+                lightBgCache.set(element, isLight);
                 return isLight;
             }
 
@@ -291,6 +304,11 @@
             let lastBlockParent = null;
             const REGISTRY_MIN_LEN = 5;
             let cleanupIntervalId = null;
+            let initialTraversalDone = false;
+            const STARTUP_RETRY_MAX = 5;
+            const STARTUP_RETRY_BASE_MS = 500;
+            let startupRetryCount = 0;
+            let startupRetryTimer = null;
 
             function resetTraversalState() {
                 atSentenceStart = true;
@@ -586,12 +604,12 @@
             }
 
             function getWordCount(element) {
-                if (element.dataset.bolderWordCount) {
-                    return parseInt(element.dataset.bolderWordCount, 10);
+                if (wordCountCache.has(element)) {
+                    return wordCountCache.get(element);
                 }
                 const text = element.innerText || '';
                 const count = text.trim().split(/\s+/).length;
-                element.dataset.bolderWordCount = count.toString();
+                wordCountCache.set(element, count);
                 return count;
             }
 
@@ -1009,6 +1027,7 @@
             }
 
             function registerMutations(count) {
+                if (!initialTraversalDone) return;
                 const now = Date.now();
                 if (now - mutationWindowStart > MUTATION_WINDOW_MS) {
                     mutationWindowStart = now;
@@ -1128,6 +1147,10 @@
 
                 if (pendingTasks.length > 0 || pendingCleanup) {
                     scheduleFlush();
+                } else if (!initialTraversalDone) {
+                    initialTraversalDone = true;
+                    console.log('Bolder: Initial traversal completed.');
+                    scheduleStartupCheck();
                 }
             }
 
@@ -1156,6 +1179,8 @@
                     }
                 });
                 activeRanges.clear();
+                wordCountCache = new WeakMap();
+                lightBgCache = new WeakMap();
             }
 
             function ensureCleanupInterval() {
@@ -1215,6 +1240,25 @@
                         }
                     }, { once: true });
                 }
+                const BODY_POLL_INTERVAL_MS = 100;
+                const BODY_POLL_MAX_ATTEMPTS = 50;
+                let bodyPollCount = 0;
+                const bodyPollTimer = setInterval(() => {
+                    bodyPollCount += 1;
+                    if (document.body && isEnabled && observedRoot !== document.body) {
+                        clearInterval(bodyPollTimer);
+                        console.log('Bolder: document.body detected via polling.');
+                        if (bodyWaitObserver) {
+                            bodyWaitObserver.disconnect();
+                            bodyWaitObserver = null;
+                        }
+                        attachToRoot(document.body);
+                        traverse(document.body);
+                        ensureCleanupInterval();
+                    } else if (bodyPollCount >= BODY_POLL_MAX_ATTEMPTS) {
+                        clearInterval(bodyPollTimer);
+                    }
+                }, BODY_POLL_INTERVAL_MS);
                 return false;
             }
 
@@ -1288,6 +1332,39 @@
                 }
             });
             bodySwapObserver.observe(document.documentElement, { childList: true });
+
+            function hasPageText() {
+                if (!document.body) return false;
+                const text = (document.body.innerText || '').trim();
+                return text.length > 100;
+            }
+
+            function scheduleStartupCheck() {
+                if (startupRetryTimer) return;
+                if (startupRetryCount >= STARTUP_RETRY_MAX) return;
+                const delay = STARTUP_RETRY_BASE_MS * Math.pow(2, startupRetryCount);
+                startupRetryTimer = setTimeout(() => {
+                    startupRetryTimer = null;
+                    if (!isEnabled) return;
+                    if (activeRanges.size > 0) {
+                        console.log('Bolder: Startup verified — highlights active.');
+                        return;
+                    }
+                    if (!hasPageText()) {
+                        console.log('Bolder: Startup check — page has no significant text yet, skipping retry.');
+                        return;
+                    }
+                    startupRetryCount += 1;
+                    console.log(`Bolder: Startup retry #${startupRetryCount} — no highlights found, re-traversing.`);
+                    initialTraversalDone = false;
+                    cleanupHighlights();
+                    resetTraversalState();
+                    if (document.body) {
+                        attachToRoot(document.body);
+                        traverse(document.body);
+                    }
+                }, delay);
+            }
 
             // Start logic
             isEnabled = checkEnabled(currentSettings);
